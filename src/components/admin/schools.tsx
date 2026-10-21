@@ -14,6 +14,7 @@ import {
   checkInTeam,
   deleteSchool,
   formatMemberNo,
+  setSchoolCodeActive,
   setSchoolStatus,
   undoCheckIn,
   type Member,
@@ -55,6 +56,8 @@ export function Schools({
         s.name.toLowerCase().includes(term) ||
         s.district.toLowerCase().includes(term) ||
         s.registration_code.toLowerCase().includes(term) ||
+        (s.short_code ?? "").toLowerCase().includes(term) ||
+        (s.club_name ?? "").toLowerCase().includes(term) ||
         s.teacher_name.toLowerCase().includes(term) ||
         s.contact_email.toLowerCase().includes(term) ||
         s.members.some(
@@ -138,7 +141,8 @@ export function Schools({
                 <div className="min-w-0">
                   <p className="truncate font-semibold text-foreground">{s.name}</p>
                   <p className="mt-0.5 truncate text-sm text-muted-foreground">
-                    {s.district} · <span className="font-mono">{s.registration_code}</span> ·{" "}
+                    {s.district} · <span className="font-mono">{s.short_code ?? s.registration_code}</span>
+                    {s.code_active === false ? " (code deactivated)" : ""} ·{" "}
                     {fmtUtcLocal(s.created_at)}
                   </p>
                 </div>
@@ -164,7 +168,28 @@ export function Schools({
                     <Detail label="Phone" value={s.contact_phone} />
                     <Detail label="Email" value={s.contact_email} />
                     <Detail label="Notes" value={s.notes ?? "—"} />
+                    <Detail label="Short code" value={s.short_code ?? "—"} />
+                    <Detail label="Radio club" value={s.club_name ?? "—"} />
+                    <Detail label="MIC phone / email" value={[s.mic_phone, s.mic_email].filter(Boolean).join(" · ") || "—"} />
+                    <Detail label="Address" value={s.address ?? "—"} />
                   </dl>
+
+                  {staff.role === "admin" && s.short_code ? (
+                    <div className="mt-4">
+                      <button
+                        onClick={() => {
+                          const next = s.code_active === false;
+                          const msg = next
+                            ? `Reactivate the code for ${s.name}? Members will be able to register with it again.`
+                            : `Deactivate the code for ${s.name}? New members will be blocked; existing registrations are kept.`;
+                          if (window.confirm(msg)) void act(() => setSchoolCodeActive(s.id, next));
+                        }}
+                        className="rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        {s.code_active === false ? "Reactivate school code" : "Deactivate school code"}
+                      </button>
+                    </div>
+                  ) : null}
 
                   <div className="mt-5 overflow-x-auto rounded-xl border border-hairline">
                     <table className="w-full text-left text-sm">
