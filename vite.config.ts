@@ -11,8 +11,8 @@ export default defineConfig({
   // Browser errors stay in the trusted parent-frame console-log flow;
   // do not expose the bridge collector on the public sandbox tunnel.
   devServerBridge: { errorCollector: false },
-  // Build for Vercel (wrapper otherwise skips Nitro outside its sandbox / defaults to Cloudflare)
-  nitro: { preset: "vercel" },
+  // Build for Netlify / deployment platforms via Nitro
+  nitro: { preset: (process.env.NITRO_PRESET as any) || "netlify" },
   // Do not set server.hmr.timeout — Vite 8 deprecated those websocket fields
   // (use server.ws.*). Overlay/host/port are package-owned; default WS timeout is 30s.
   tanstackStart: {

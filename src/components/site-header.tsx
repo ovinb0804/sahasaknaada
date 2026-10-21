@@ -5,6 +5,7 @@ import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
+import { LiquidGlassButton } from "@/components/ui/liquid-glass-button";
 import { NAV_SECTIONS, EVENT } from "@/lib/content";
 import { GradualBlur } from "@/components/bits/gradual-blur";
 
@@ -60,24 +61,16 @@ export function SiteHeader() {
           </nav>
 
           <div className="flex items-center gap-2">
-            <Button
+            <LiquidGlassButton
               asChild
+              variant="gold"
               size="sm"
-              className="hidden border border-gold/40 bg-primary text-primary-foreground transition-colors hover:border-gold/70 hover:bg-secondary focus-visible:ring-gold sm:inline-flex"
+              className="font-medium"
             >
-              <Link to="/register" className="focus-visible:outline-none">
+              <Link to="/register">
                 Register
               </Link>
-            </Button>
-            <Button
-              asChild
-              size="sm"
-              className="border border-gold/40 bg-primary text-primary-foreground transition-colors hover:border-gold/70 hover:bg-secondary focus-visible:ring-gold sm:hidden"
-            >
-              <Link to="/register" className="focus-visible:outline-none">
-                Register
-              </Link>
-            </Button>
+            </LiquidGlassButton>
 
             <button
               type="button"
@@ -85,9 +78,9 @@ export function SiteHeader() {
               aria-expanded={open}
               aria-controls="mobile-menu"
               onClick={() => setOpen((v) => !v)}
-              className="grid h-10 w-10 place-items-center rounded-md border border-border text-foreground transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden"
+              className="apple-liquid-glass grid h-9 w-9 p-0 rounded-xl md:hidden"
             >
-              {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              {open ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
             </button>
           </div>
         </div>
@@ -115,15 +108,17 @@ export function SiteHeader() {
               {s.label}
             </a>
           ))}
-          <Button
+          <LiquidGlassButton
+            variant="gold"
+            size="default"
             onClick={() => {
               setOpen(false);
               void navigate({ to: "/register" });
             }}
-            className="mt-2 border border-gold/40 bg-primary text-primary-foreground hover:border-gold/70 hover:bg-secondary focus-visible:ring-gold"
+            className="mt-2 w-full justify-center"
           >
             Register for {EVENT.name}
-          </Button>
+          </LiquidGlassButton>
         </nav>
       </div>
     </header>

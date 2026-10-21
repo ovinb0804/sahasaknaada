@@ -70,6 +70,7 @@ function AdminPage() {
 }
 
 function AdminSignIn() {
+  useReveal();
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [busy, setBusy] = useState(false);

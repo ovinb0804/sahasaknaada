@@ -11,44 +11,62 @@ export function useReveal<T extends HTMLElement = HTMLElement>(selector = "[data
 
   useEffect(() => {
     const root = ref.current ?? document;
-    const els = Array.from(root.querySelectorAll<HTMLElement>(selector));
-    if (els.length === 0) return;
-
-    // Immediately mark in-viewport elements visible so there is no dark/blank delay
-    els.forEach((el) => {
-      const rect = el.getBoundingClientRect();
-      if (rect.top < window.innerHeight && rect.bottom > 0) {
-        el.classList.add("is-visible");
-      }
-    });
 
     const reduce =
       typeof window !== "undefined" &&
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
-    if (reduce || typeof IntersectionObserver === "undefined") {
-      els.forEach((el) => el.classList.add("is-visible"));
-      return;
+    const seen = new WeakSet<HTMLElement>();
+
+    let io: IntersectionObserver | null = null;
+    if (!reduce && typeof IntersectionObserver !== "undefined") {
+      io = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((e) => {
+            if (e.isIntersecting) {
+              e.target.classList.add("is-visible");
+              io?.unobserve(e.target);
+            }
+          });
+        },
+        { rootMargin: "0px 0px 50px 0px", threshold: 0.05 },
+      );
     }
 
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) {
-            e.target.classList.add("is-visible");
-            io.unobserve(e.target);
-          }
-        });
-      },
-      { rootMargin: "0px 0px 50px 0px", threshold: 0.05 },
-    );
+    const checkElement = (el: HTMLElement) => {
+      if (el.classList.contains("is-visible")) return;
 
-    els.forEach((el) => {
-      if (!el.classList.contains("is-visible")) {
+      const rect = el.getBoundingClientRect();
+      if (reduce || !io || (rect.top < window.innerHeight && rect.bottom > 0)) {
+        el.classList.add("is-visible");
+        return;
+      }
+
+      if (!seen.has(el)) {
+        seen.add(el);
         io.observe(el);
       }
-    });
-    return () => io.disconnect();
+    };
+
+    const scan = () => {
+      const els = Array.from(root.querySelectorAll<HTMLElement>(selector));
+      els.forEach(checkElement);
+    };
+
+    scan();
+
+    let mo: MutationObserver | null = null;
+    if (typeof MutationObserver !== "undefined") {
+      mo = new MutationObserver(() => {
+        scan();
+      });
+      mo.observe(root, { childList: true, subtree: true });
+    }
+
+    return () => {
+      mo?.disconnect();
+      io?.disconnect();
+    };
   }, [selector]);
 
   return ref;

@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 
 import { BlurText } from "@/components/bits/blur-text";
-import { Button } from "@/components/ui/button";
+import { LiquidGlassButton } from "@/components/ui/liquid-glass-button";
 import { EVENT } from "@/lib/content";
 import { HeroLogo } from "@/components/home/hero-logo";
 
@@ -71,21 +71,16 @@ export function Hero() {
           </p>
 
           <div data-reveal className="reveal mt-9 flex flex-wrap items-center gap-4">
-            <Button
-              asChild
-              size="lg"
-              className="border border-gold/40 bg-primary px-7 text-primary-foreground transition-colors hover:border-gold/80 hover:bg-secondary focus-visible:ring-gold"
-            >
-              <Link to="/register" className="focus-visible:outline-none">
+            <LiquidGlassButton asChild variant="gold" size="lg">
+              <Link to="/register">
                 Register Now
               </Link>
-            </Button>
-            <a
-              href="/#agenda"
-              className="text-sm font-medium text-foreground underline-offset-4 transition-colors hover:text-gold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background rounded"
-            >
-              See the agenda
-            </a>
+            </LiquidGlassButton>
+            <LiquidGlassButton asChild variant="glass" size="lg">
+              <a href="/#agenda">
+                See the agenda
+              </a>
+            </LiquidGlassButton>
           </div>
         </div>
 

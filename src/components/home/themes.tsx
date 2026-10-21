@@ -77,7 +77,7 @@ export function Themes() {
           ))}
         </div>
 
-        <p
+        <div
           data-reveal
           className="reveal mt-12 max-w-2xl text-base leading-relaxed text-muted-foreground text-pretty md:mt-14"
         >
@@ -92,7 +92,7 @@ export function Themes() {
             blur={8}
             distance={24}
           />
-        </p>
+        </div>
       </div>
     </section>
   );

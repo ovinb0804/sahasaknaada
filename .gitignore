@@ -14,7 +14,11 @@ dist-ssr
 .vinxi
 .tanstack/**
 .nitro
+.netlify
+.vercel
 *.local
+.env
+.env.*
 src/tailwind.config.vibe.json
 
 # Wrangler / Cloudflare

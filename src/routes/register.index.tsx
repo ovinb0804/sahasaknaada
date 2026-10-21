@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight } from "lucide-react";
 
 import { BackLink, GoldPanel, RegisterShell } from "@/components/register/shared";
+import { LiquidGlassButton } from "@/components/ui/liquid-glass-button";
 import { getEventSettings, type EventSettings } from "@/lib/registration";
 import { cn } from "@/lib/utils";
 
@@ -49,12 +50,16 @@ function RegisterEntry() {
           <p className="mt-3 flex-1 text-base">
             A radio club or school representative registers the school and gets a code to share.
           </p>
-          <Link
-            to="/register/school"
-            className="mt-8 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/30 bg-[#0A0A0A] px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-[#1a1a1a] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#0A0A0A] focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5B921]"
+          <LiquidGlassButton
+            asChild
+            variant="glass"
+            size="lg"
+            className="mt-8 font-semibold"
           >
-            Register your school <ArrowRight className="h-4 w-4" aria-hidden />
-          </Link>
+            <Link to="/register/school">
+              Register your school <ArrowRight className="h-4 w-4" aria-hidden />
+            </Link>
+          </LiquidGlassButton>
         </GoldPanel>
 
         <GoldPanel className="flex flex-col">
@@ -63,12 +68,16 @@ function RegisterEntry() {
           <p className="mt-3 flex-1 text-base">
             Students register using the code or QR their school received.
           </p>
-          <Link
-            to="/register/member"
-            className="mt-8 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/30 bg-[#0A0A0A] px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-[#1a1a1a] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#0A0A0A] focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5B921]"
+          <LiquidGlassButton
+            asChild
+            variant="glass"
+            size="lg"
+            className="mt-8 font-semibold"
           >
-            Register as a member <ArrowRight className="h-4 w-4" aria-hidden />
-          </Link>
+            <Link to="/register/member">
+              Register as a member <ArrowRight className="h-4 w-4" aria-hidden />
+            </Link>
+          </LiquidGlassButton>
         </GoldPanel>
       </div>
     </RegisterShell>

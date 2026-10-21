@@ -10,18 +10,14 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as PassesRouteImport } from './routes/passes'
 import { Route as AdminRouteImport } from './routes/admin'
-import { Route as RegisterRouteImport } from './routes/register'
+import { Route as RegisterIndexRouteImport } from './routes/register.index'
+import { Route as RegisterMemberRouteImport } from './routes/register.member'
+import { Route as RegisterSchoolRouteImport } from './routes/register.school'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PassesRoute = PassesRouteImport.update({
-  id: '/passes',
-  path: '/passes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -29,44 +25,65 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RegisterRoute = RegisterRouteImport.update({
-  id: '/register',
-  path: '/register',
+const RegisterIndexRoute = RegisterIndexRouteImport.update({
+  id: '/register/',
+  path: '/register/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterMemberRoute = RegisterMemberRouteImport.update({
+  id: '/register/member',
+  path: '/register/member',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterSchoolRoute = RegisterSchoolRouteImport.update({
+  id: '/register/school',
+  path: '/register/school',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/passes': typeof PassesRoute
-  '/register': typeof RegisterRoute
+  '/register/member': typeof RegisterMemberRoute
+  '/register/school': typeof RegisterSchoolRoute
+  '/register/': typeof RegisterIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/passes': typeof PassesRoute
-  '/register': typeof RegisterRoute
+  '/register/member': typeof RegisterMemberRoute
+  '/register/school': typeof RegisterSchoolRoute
+  '/register': typeof RegisterIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/passes': typeof PassesRoute
-  '/register': typeof RegisterRoute
+  '/register/member': typeof RegisterMemberRoute
+  '/register/school': typeof RegisterSchoolRoute
+  '/register/': typeof RegisterIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/passes' | '/register'
+  fullPaths:
+    '/' | '/admin' | '/register/member' | '/register/school' | '/register/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/passes' | '/register'
-  id: '__root__' | '/' | '/admin' | '/passes' | '/register'
+  to: '/' | '/admin' | '/register/member' | '/register/school' | '/register'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/register/member'
+    | '/register/school'
+    | '/register/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
-  PassesRoute: typeof PassesRoute
-  RegisterRoute: typeof RegisterRoute
+  RegisterMemberRoute: typeof RegisterMemberRoute
+  RegisterSchoolRoute: typeof RegisterSchoolRoute
+  RegisterIndexRoute: typeof RegisterIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -85,18 +102,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/passes': {
-      id: '/passes'
-      path: '/passes'
-      fullPath: '/passes'
-      preLoaderRoute: typeof PassesRouteImport
+    '/register/': {
+      id: '/register/'
+      path: '/register'
+      fullPath: '/register/'
+      preLoaderRoute: typeof RegisterIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/register': {
-      id: '/register'
-      path: '/register'
-      fullPath: '/register'
-      preLoaderRoute: typeof RegisterRouteImport
+    '/register/member': {
+      id: '/register/member'
+      path: '/register/member'
+      fullPath: '/register/member'
+      preLoaderRoute: typeof RegisterMemberRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register/school': {
+      id: '/register/school'
+      path: '/register/school'
+      fullPath: '/register/school'
+      preLoaderRoute: typeof RegisterSchoolRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -105,8 +129,9 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
-  PassesRoute: PassesRoute,
-  RegisterRoute: RegisterRoute,
+  RegisterMemberRoute: RegisterMemberRoute,
+  RegisterSchoolRoute: RegisterSchoolRoute,
+  RegisterIndexRoute: RegisterIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

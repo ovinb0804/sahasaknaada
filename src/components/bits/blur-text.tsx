@@ -216,6 +216,7 @@ const startPhase = (trigger: Trigger): "in" | "rest" | "from" =>
   trigger === "load" ? "in" : trigger === "hover" || trigger === "click" ? "rest" : "from";
 
 export type BlurTextProps = {
+  as?: "span" | "p" | "div" | "h1" | "h2" | "h3";
   text?: string;
   delay?: number;
   className?: string;
@@ -241,6 +242,7 @@ export type BlurTextProps = {
 };
 
 export function BlurText({
+  as: Component = "span",
   text = "",
   delay = 200,
   className = "",
@@ -264,7 +266,7 @@ export function BlurText({
   fromColor,
   focusOnHover = false,
 }: BlurTextProps) {
-  const ref = useRef<HTMLParagraphElement>(null);
+  const ref = useRef<HTMLElement>(null);
   const [phase, setPhase] = useState<"in" | "rest" | "out" | "from">(() => startPhase(trigger));
   const firstPhase = useRef(phase).current;
   const [focusWord, setFocusWord] = useState(-1);
@@ -473,8 +475,8 @@ export function BlurText({
 
   return (
     <MotionConfig reducedMotion="user">
-      <p
-        ref={ref}
+      <Component
+        ref={ref as any}
         className={className}
         style={{
           display: "flex",
@@ -496,7 +498,7 @@ export function BlurText({
             {indices.map(renderPiece)}
           </span>
         ))}
-      </p>
+      </Component>
     </MotionConfig>
   );
 }

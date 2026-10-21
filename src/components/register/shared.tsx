@@ -16,13 +16,13 @@ export const GOLD = "#F5B921";
 
 export function RegisterShell({ children, narrow = false }: { children: ReactNode; narrow?: boolean }) {
   return (
-    <div className="relative min-h-screen overflow-x-hidden">
+    <div className="relative min-h-screen bg-[#07080A] text-[#F5F5F5] overflow-x-hidden">
       <RegisterAtmosphere />
       <SiteHeader />
       <main
         className={cn(
-          "relative z-10 mx-auto w-full px-5 py-10 sm:px-8 md:py-14",
-          narrow ? "max-w-3xl" : "max-w-5xl",
+          "relative z-10 mx-auto w-full px-5 py-8 sm:px-8 md:py-12",
+          narrow ? "max-w-4xl" : "max-w-5xl",
         )}
       >
         {children}
@@ -36,10 +36,10 @@ export function BackLink({ to, children }: { to: "/" | "/register"; children: Re
   return (
     <Link
       to={to}
-      className="mb-6 inline-flex items-center gap-2 rounded-md text-sm font-medium text-[var(--reg-text-2)] transition-colors hover:text-[var(--reg-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--reg-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--reg-bg)]"
+      className="group mb-4 inline-flex items-center gap-2 rounded-lg py-1 text-sm font-medium text-[#A5A9B2] transition-colors hover:text-[#F5F5F5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E7B54A] focus-visible:ring-offset-2 focus-visible:ring-offset-[#07080A]"
     >
-      <ArrowLeft className="h-4 w-4" aria-hidden />
-      {children}
+      <ArrowLeft className="h-4 w-4 text-[#E7B54A] transition-transform group-hover:-translate-x-1" aria-hidden />
+      <span>{children}</span>
     </Link>
   );
 }
