@@ -98,7 +98,7 @@ export function CheckInDesk({ schools, onChanged }: { schools: School[]; onChang
         <div>
           <h1 className="font-display text-3xl font-bold tracking-tight">Check-in</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Search by name, reference (e.g. SSA-0007), school or school code.
+            Search by name, reference (e.g. SSA-0007), school or school code. Scanning a pass QR checks the person in.
           </p>
         </div>
         <p className="rounded-full border border-hairline px-4 py-1.5 text-sm tabular-nums" aria-live="polite">
@@ -117,6 +117,21 @@ export function CheckInDesk({ schools, onChanged }: { schools: School[]; onChang
           onChange={(e) => {
             setQ(e.target.value);
             setBanner(null);
+          }}
+          onKeyDown={(e) => {
+            // A barcode/QR scanner types the pass code and presses Enter. Only an EXACT
+            // pass-code or reference match is checked in straight away; names never are.
+            if (e.key !== "Enter") return;
+            const typed = q.trim().toLowerCase();
+            if (!typed) return;
+            const exact = all.filter(
+              (r) => r.member.pass_code.toLowerCase() === typed || memberRef(r.member).toLowerCase() === typed,
+            );
+            const only = exact.length === 1 ? exact[0] : undefined;
+            if (only && !only.member.checked_in_at && memberStatus(only.member) !== "cancelled") {
+              e.preventDefault();
+              void checkIn(only);
+            }
           }}
           placeholder="Start typing a name, reference or school code…"
           className="w-full rounded-2xl border border-border bg-surface py-4 pl-12 pr-4 text-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"

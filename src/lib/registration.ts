@@ -121,7 +121,7 @@ export type MemberCard = {
 
 export type CheckInResult =
   | {
-      result: "checked_in" | "already_checked_in" | "school_cancelled" | "undone";
+      result: "checked_in" | "already_checked_in" | "school_cancelled" | "cancelled" | "undone";
       card: MemberCard;
     }
   | { result: "not_found" };
@@ -346,3 +346,24 @@ export function setMemberNotes(id: string, notes: string): Promise<void> {
   });
 }
 
+
+/* ------------------------- Duplicate-school review ------------------------ */
+
+export type ReviewItem = {
+  id: string;
+  payload: Partial<SchoolRegistrationInput>;
+  reason: string;
+  created_at: string;
+  resolved: boolean;
+};
+
+export function listReviewQueue(): Promise<ReviewItem[]> {
+  return select<ReviewItem[]>(
+    "school_review_queue?select=id,payload,reason,created_at,resolved&resolved=eq.false&order=created_at.desc&limit=50",
+  );
+}
+
+/** Admins only (enforced by RLS). */
+export function resolveReviewItem(id: string): Promise<void> {
+  return update(`school_review_queue?id=eq.${encodeURIComponent(id)}`, { resolved: true });
+}

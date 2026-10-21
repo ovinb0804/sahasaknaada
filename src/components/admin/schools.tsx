@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PassCard, PassSheet } from "@/components/pass-card";
+import { SchoolCodePanel } from "./school-code";
 import {
   checkInMember,
   checkInTeam,
@@ -173,6 +174,8 @@ export function Schools({
                     <Detail label="MIC phone / email" value={[s.mic_phone, s.mic_email].filter(Boolean).join(" · ") || "—"} />
                     <Detail label="Address" value={s.address ?? "—"} />
                   </dl>
+
+                  {s.short_code ? <SchoolCodePanel code={s.short_code} schoolName={s.name} active={s.code_active !== false} /> : null}
 
                   {staff.role === "admin" && s.short_code ? (
                     <div className="mt-4">
