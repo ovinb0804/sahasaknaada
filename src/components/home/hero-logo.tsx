@@ -25,7 +25,7 @@ export function HeroLogo() {
   }, []);
 
   return (
-    <div className="ambient-gold-soft relative flex aspect-[16/10] w-full max-w-xl items-center justify-center overflow-hidden rounded-3xl border border-hairline bg-surface/80 p-6 sm:p-8 md:aspect-[4/3]">
+    <div className="ambient-gold-soft relative flex aspect-square w-full max-w-2xl items-center justify-center overflow-hidden rounded-3xl border border-hairline bg-surface/80 p-3 sm:p-4">
       <div
         className="pointer-events-none absolute inset-0 rounded-3xl bg-gradient-to-b from-transparent via-transparent to-black/40"
         aria-hidden
@@ -41,7 +41,7 @@ export function HeroLogo() {
           edgeBend={0.7}
           angle={70}
           speed={0.7}
-          scale={0.7}
+          scale={0.95}
           mouseTilt={0.45}
           lightMode={false}
           intro
@@ -51,7 +51,7 @@ export function HeroLogo() {
         <img
           src={EVENT.logoUrl}
           alt="Sahasaknaada official event logo featuring microphone in hand and stylized lettering"
-          className="relative z-10 max-h-72 w-full object-contain drop-shadow-[0_12px_28px_rgba(245,185,33,0.18)] sm:max-h-80"
+          className="relative z-10 max-h-[34rem] w-full object-contain drop-shadow-[0_12px_28px_rgba(245,185,33,0.18)]"
         />
       )}
     </div>

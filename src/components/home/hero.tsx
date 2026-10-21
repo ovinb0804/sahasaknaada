@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 
-import { DotGrid } from "@/components/bits/dot-grid";
 import { BlurText } from "@/components/bits/blur-text";
 import { Button } from "@/components/ui/button";
 import { EVENT } from "@/lib/content";
@@ -9,31 +8,13 @@ import { HeroLogo } from "@/components/home/hero-logo";
 export function Hero() {
   return (
     <section className="relative overflow-hidden border-b border-hairline">
-      {/* Background DotGrid for Hero — responsive, interactive WebGL2 dots */}
-      <DotGrid
-        className="pointer-events-none absolute inset-0 z-0"
-        baseColor="#3c3c46"
-        activeColor="#f5b921"
-        dotSize={4}
-        gap={24}
-        proximity={160}
-        strength={1}
-        bounce={0.5}
-        swell={0.9}
-        stretch={0.5}
-        glow={0.6}
-        opacity={0.9}
-        intro
-        mouseInteraction
-        clickShock
-      />
       {/* subtle warm ambient bloom, kept away from body copy */}
       <div
         className="ambient-gold pointer-events-none absolute inset-0 z-0 opacity-70"
         aria-hidden
       />
 
-      <div className="relative z-10 mx-auto grid w-full max-w-6xl gap-12 px-5 pb-20 pt-16 sm:px-8 md:grid-cols-[1.1fr_0.9fr] md:gap-8 md:pb-28 md:pt-24">
+      <div className="relative z-10 mx-auto grid w-full max-w-7xl gap-12 px-5 pb-20 pt-16 sm:px-8 md:grid-cols-[1.05fr_1fr] md:gap-10 md:pb-28 md:pt-24">
         {/* Left: copy */}
         <div className="flex flex-col justify-center">
           <p data-reveal className="text-xs font-medium uppercase tracking-[0.22em] text-gold">

@@ -1,15 +1,13 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { DotGrid } from "@/components/bits/dot-grid";
-import { FlexCarousel } from "@/components/bits/flex-carousel";
 import { BlurText } from "@/components/bits/blur-text";
 import { GALLERY } from "@/lib/content";
 import { cn } from "@/lib/utils";
 
 /**
- * Intra-school gallery. Uses the React Bits FlexCarousel (WebGL2) with a
- * scroll-snap fallback for reduced-motion / no-WebGL2 / SSR. The placeholders
- * are clearly-labelled abstract sound visuals — not fake event photos.
+ * Intra-school gallery: a native scroll-snap row of previous intra-school
+ * workshop photos (the WebGL FlexCarousel was removed).
  */
 export function Gallery() {
   const [active, setActive] = useState(0);
@@ -100,11 +98,6 @@ export function Gallery() {
   );
 }
 
-/**
- * FlexCarousel (WebGL2) on capable devices; scroll-snap fallback otherwise.
- * The fallback is the same gallery rendered as a native horizontal scroll,
- * so the section always works without WebGL2 or under reduced motion.
- */
 function FlexCarouselLayer({
   items,
   onActive,
@@ -112,47 +105,14 @@ function FlexCarouselLayer({
   items: { src: string; alt: string; title: string; subtitle?: string }[];
   onActive: (i: number) => void;
 }) {
-  const [useFallback, setUseFallback] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
-
-  // Detect WebGL2 + reduced-motion once on mount.
-  if (typeof window !== "undefined" && useFallback === false) {
-    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
-    const canvas = document.createElement("canvas");
-    const gl =
-      canvas.getContext("webgl2") ||
-      (canvas.getContext("experimental-webgl2") as WebGL2RenderingContext | null);
-    if (reduce || !gl) {
-      setUseFallback(true);
-    }
-  }
-
   return (
     <div
       id="gallery-carousel-root"
       ref={rootRef}
       className="relative w-full overflow-hidden rounded-3xl border border-hairline bg-surface/40"
     >
-      {useFallback ? (
-        <FallbackScroller items={items} onActive={onActive} rootRef={rootRef} />
-      ) : (
-        <div className="h-[clamp(20rem,56vh,34rem)] w-full">
-          <FlexCarousel
-            items={items}
-            preset="liquid"
-            intro="rise"
-            cardHeight={0.62}
-            gap={14}
-            squeeze={0.18}
-            focusOnClick
-            captions
-            fit="natural"
-            radius={18}
-            captureWheel
-            onChange={(i) => onActive(i)}
-          />
-        </div>
-      )}
+      <FallbackScroller items={items} onActive={onActive} rootRef={rootRef} />
     </div>
   );
 }
@@ -169,25 +129,19 @@ function FallbackScroller({
   const scroller = useRef<HTMLDivElement>(null);
 
   // Listen for goto requests from the dot indicators.
-  if (typeof window !== "undefined") {
-    queueMicrotask(() => {
-      const root = rootRef.current;
-      if (!root) return;
-      const handler = (e: Event) => {
-        const idx = Number((e as CustomEvent).detail);
-        const el = scroller.current?.querySelectorAll("[data-gallery-card]")?.[idx] as
-          HTMLElement | undefined;
-        el?.scrollIntoView({
-          behavior: "auto",
-          inline: "center",
-          block: "nearest",
-        });
-      };
-      root.addEventListener("gallery:goto", handler);
-      // Best-effort cleanup via a one-shot per mount is hard in render; the
-      // listener lives with the root element and is harmless.
-    });
-  }
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const handler = (e: Event) => {
+      const idx = Number((e as CustomEvent).detail);
+      const el = scroller.current?.querySelectorAll("[data-gallery-card]")?.[idx] as
+        | HTMLElement
+        | undefined;
+      el?.scrollIntoView({ behavior: "auto", inline: "center", block: "nearest" });
+    };
+    root.addEventListener("gallery:goto", handler);
+    return () => root.removeEventListener("gallery:goto", handler);
+  }, [rootRef]);
 
   return (
     <div

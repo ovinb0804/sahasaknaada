@@ -150,7 +150,8 @@ void main() {
   float diagTLtoBR = rotatedUV.x + rotatedUV.y;
 
   vec3 color1 = mix(vec3(0.98, 0.98, 1.0), vec3(0.9, 0.9, 0.93), u_light);
-  vec3 color2 = vec3(0.1, 0.1, 0.1 + 0.1 * smoothstep(0.7, 1.3, diagTLtoBR));
+  // Sahasaknaada tweak: the dark reflection bands use a warm mid-tone instead of near-black, so the logo never goes dark.
+  vec3 color2 = vec3(0.52, 0.40, 0.18 + 0.08 * smoothstep(0.7, 1.3, diagTLtoBR));
 
   vec2 gradUV = uv - 0.5 - u_tilt * vec2(0.18, -0.12);
   float dist = length(gradUV + vec2(0.0, 0.2 * diagBLtoTR));
