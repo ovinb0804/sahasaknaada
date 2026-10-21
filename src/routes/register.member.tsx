@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, Loader2, Plus, Trash2 } from "lucide-react";
+import { CheckCircle2, Loader2, MessageCircle, Plus, Trash2 } from "lucide-react";
 
 import {
   BackLink,
@@ -12,6 +12,7 @@ import {
   RegisterShell,
   TextField,
 } from "@/components/register/shared";
+import { EVENT } from "@/lib/content";
 import {
   formIsOpen,
   getEventSettings,
@@ -236,6 +237,16 @@ function MemberRegistration() {
             <p className="text-sm opacity-80">
               This confirms the registrations were received. The organizers will share any further details.
             </p>
+            {EVENT.whatsappGroupUrl ? (
+              <a
+                href={EVENT.whatsappGroupUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-12 items-center gap-2 self-start rounded-xl border border-white/30 bg-[#0A0A0A] px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-[#1a1a1a] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#0A0A0A] focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5B921]"
+              >
+                <MessageCircle className="h-4 w-4" aria-hidden /> Join the WhatsApp group
+              </a>
+            ) : null}
             <DarkButton type="button" onClick={registerMore} className="self-start">
               <Plus className="h-4 w-4" aria-hidden /> Register more members
             </DarkButton>
