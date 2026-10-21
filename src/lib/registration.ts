@@ -304,3 +304,20 @@ export type MemberCheckIn = { result: "checked_in" | "already_checked_in" | "can
 export function checkInMemberById(memberId: string): Promise<MemberCheckIn> {
   return rpc<MemberCheckIn>("check_in_member_id", { p_member_id: memberId });
 }
+
+export type MembersRegistrationResult = {
+  status: "created";
+  school_name: string;
+  members: { full_name: string; reference: string; pass_code: string; possible_duplicate: boolean }[];
+};
+
+/** Register several members of one school at once (atomic: all or none). */
+export function registerMembers(
+  code: string,
+  members: MemberRegistrationInput[],
+): Promise<MembersRegistrationResult> {
+  return rpc<MembersRegistrationResult>("register_members", {
+    p_code: normalizeCode(code),
+    p_members: members,
+  });
+}

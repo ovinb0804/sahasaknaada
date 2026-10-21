@@ -1,7 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import * as QRCode from "qrcode";
-import { Check, Copy, Download, Loader2, Printer } from "lucide-react";
+import { ArrowRight, Check, Copy, Download, Loader2, MessageCircle, Printer } from "lucide-react";
 
 import {
   BackLink,
@@ -13,6 +13,7 @@ import {
   RegisterShell,
   TextField,
 } from "@/components/register/shared";
+import { EVENT } from "@/lib/content";
 import {
   formIsOpen,
   getEventSettings,
@@ -261,6 +262,32 @@ function SchoolSuccess({ schoolName, code }: { schoolName: string; code: string 
         Save this code now. Registrations are private, so please keep it somewhere safe. If you lose it, the organizers can
         look it up for you.
       </GoldAlert>
+
+      <div className="flex flex-col gap-3 rounded-2xl border-2 border-[#0A0A0A] p-4 print:hidden">
+        <p className="text-sm font-bold uppercase tracking-[0.15em]">Next steps</p>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            to="/register/member"
+            search={{ code }}
+            className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-white/30 bg-[#0A0A0A] px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-[#1a1a1a] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#0A0A0A] focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5B921]"
+          >
+            Register members now <ArrowRight className="h-4 w-4" aria-hidden />
+          </Link>
+          {EVENT.whatsappGroupUrl ? (
+            <a
+              href={EVENT.whatsappGroupUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-12 items-center gap-2 rounded-xl border-2 border-[#0A0A0A] px-6 py-3 text-base font-semibold text-[#0A0A0A] transition-colors hover:bg-[#0A0A0A] hover:text-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#0A0A0A] focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5B921]"
+            >
+              <MessageCircle className="h-4 w-4" aria-hidden /> Join the WhatsApp group
+            </a>
+          ) : null}
+        </div>
+        <p className="text-sm">
+          You can register your own members here right away, or share the code or QR so they register themselves.
+        </p>
+      </div>
 
       <div className="flex flex-wrap gap-2 print:hidden">
         {png ? (

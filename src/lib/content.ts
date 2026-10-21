@@ -21,6 +21,8 @@ export const EVENT = {
   heroAccentWord: "Sound",
   heroCopy:
     "Sahasaknaada is an inter-school audio workshop by the Radio Club of D. S. Senanayake College — bringing students together to explore sound, audio technology and creativity.",
+  /** WhatsApp group invite link shown after a school registers. Leave empty until the organizers supply it. */
+  whatsappGroupUrl: "",
   /** Approved official event logo */
   logoUrl:
     "https://vibe.filesafe.space/1792255075376368762/attachments/a5dfb02f-b950-4856-8229-19cd618d2205.png",
