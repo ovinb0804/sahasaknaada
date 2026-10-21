@@ -24,7 +24,14 @@ export type Member = {
   checked_in_at: string | null;
   checked_in_by: string | null;
   created_at: string;
+  /** Added by the school_first_registration migration. */
+  email?: string | null;
+  phone?: string | null;
+  registration_status?: MemberStatus;
+  internal_notes?: string | null;
 };
+
+export type MemberStatus = "submitted" | "confirmed" | "needs_review" | "cancelled";
 
 export type School = {
   id: string;
@@ -319,5 +326,18 @@ export function registerMembers(
   return rpc<MembersRegistrationResult>("register_members", {
     p_code: normalizeCode(code),
     p_members: members,
+
+/* Admin-only member edits (enforced by RLS). */
+export function setMemberStatus(id: string, status: MemberStatus): Promise<void> {
+  return update(`members?id=eq.${encodeURIComponent(id)}`, {
+    registration_status: status,
+    updated_at: new Date().toISOString(),
+  });
+}
+
+export function setMemberNotes(id: string, notes: string): Promise<void> {
+  return update(`members?id=eq.${encodeURIComponent(id)}`, {
+    internal_notes: notes.trim() === "" ? null : notes.trim(),
+    updated_at: new Date().toISOString(),
   });
 }

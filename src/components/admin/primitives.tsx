@@ -4,7 +4,7 @@ import type { School, SchoolPasses, SchoolStatus, StaffProfile } from "@/lib/reg
 
 export { fmtUtcLocal } from "@/lib/admin-helpers";
 
-export type Tab = "overview" | "schools" | "checkin" | "export";
+export type Tab = "overview" | "schools" | "registrations" | "checkin" | "export";
 
 /* ---------------- Top bar + tabs ---------------- */
 
@@ -30,12 +30,21 @@ export function AdminTopBar({ staff, onSignOut }: { staff: StaffProfile; onSignO
   );
 }
 
-export function Tabs({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
+export function Tabs({
+  tab,
+  setTab,
+  isAdmin = false,
+}: {
+  tab: Tab;
+  setTab: (t: Tab) => void;
+  isAdmin?: boolean;
+}) {
   const items: { id: Tab; label: string }[] = [
     { id: "checkin", label: "Check-in" },
     { id: "overview", label: "Overview" },
     { id: "schools", label: "Schools" },
-    { id: "export", label: "Reports & Export" },
+    { id: "registrations", label: "Registrations" },
+    ...(isAdmin ? [{ id: "export" as Tab, label: "Reports & Export" }] : []),
   ];
   return (
     <div

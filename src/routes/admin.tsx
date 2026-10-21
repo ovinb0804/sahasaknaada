@@ -9,7 +9,8 @@ import { getStaffProfile, listSchools, type School, type StaffProfile } from "@/
 import { AdminTopBar, Tabs, type Tab } from "@/components/admin/primitives";
 import { Overview } from "@/components/admin/overview";
 import { Schools } from "@/components/admin/schools";
-import { CheckIn } from "@/components/admin/checkin";
+import { CheckInDesk } from "@/components/admin/checkin-desk";
+import { Registrations } from "@/components/admin/registrations";
 import { ExportPanel } from "@/components/admin/export";
 
 export const Route = createFileRoute("/admin")({
@@ -199,7 +200,7 @@ function AdminDashboard({ staff, onSignOut }: { staff: StaffProfile; onSignOut: 
     <div className="min-h-screen">
       <AdminTopBar staff={staff} onSignOut={onSignOut} />
       <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
-        <Tabs tab={tab} setTab={setTab} />
+        <Tabs tab={tab} setTab={setTab} isAdmin={staff.role === "admin"} />
         {error && (
           <div
             role="alert"
@@ -225,8 +226,17 @@ function AdminDashboard({ staff, onSignOut }: { staff: StaffProfile; onSignOut: 
               {tab === "schools" && (
                 <Schools schools={schools} staff={staff} onChanged={() => void refresh()} />
               )}
-              {tab === "checkin" && <CheckIn schools={schools} onChanged={() => void refresh()} />}
-              {tab === "export" && <ExportPanel schools={schools} />}
+              {tab === "registrations" && (
+                <Registrations
+                  schools={schools}
+                  isAdmin={staff.role === "admin"}
+                  onChanged={() => void refresh()}
+                />
+              )}
+              {tab === "checkin" && (
+                <CheckInDesk schools={schools} onChanged={() => void refresh()} />
+              )}
+              {tab === "export" && staff.role === "admin" && <ExportPanel schools={schools} />}
             </>
           )}
         </div>
