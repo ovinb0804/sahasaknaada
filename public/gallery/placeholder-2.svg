@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1500" viewBox="0 0 1200 1500" role="img" aria-label="Approved photo to be added — abstract placeholder">
+  <defs>
+    <radialGradient id="g2" cx="60%" cy="42%" r="72%">
+      <stop offset="0%" stop-color="#14171c"/>
+      <stop offset="100%" stop-color="#08080a"/>
+    </radialGradient>
+    <linearGradient id="bar2" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#e7b54a" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#e7b54a" stop-opacity="0.05"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="1500" fill="url(#g2)"/>
+  <g fill="url(#bar2)">
+    <rect x="240" y="640" width="28" height="360" rx="14"/>
+    <rect x="320" y="520" width="28" height="480" rx="14"/>
+    <rect x="400" y="600" width="28" height="400" rx="14"/>
+    <rect x="480" y="440" width="28" height="560" rx="14"/>
+    <rect x="560" y="560" width="28" height="440" rx="14"/>
+    <rect x="640" y="500" width="28" height="500" rx="14"/>
+    <rect x="720" y="620" width="28" height="380" rx="14"/>
+    <rect x="800" y="540" width="28" height="460" rx="14"/>
+    <rect x="880" y="660" width="28" height="340" rx="14"/>
+  </g>
+  <text x="600" y="980" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="34" font-weight="600" letter-spacing="6" fill="#e7b54a">APPROVED PHOTO</text>
+  <text x="600" y="1030" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="26" letter-spacing="4" fill="#a3a7af">to be added</text>
+</svg>

@@ -1,0 +1,31 @@
+/*
+ * DotGrid — component styles.
+ *
+ * Wrapped in @layer components so Tailwind utility classes (e.g.
+ * `absolute inset-0` passed via the `className` prop) win over the defaults
+ * here. Without the layer, unlayered `.dot-grid { position: relative }`
+ * overrides `.absolute`, collapsing the container (its canvas is
+ * position:absolute) and the WebGL canvas sizes to 0x0 — nothing renders.
+ */
+@layer components {
+  .dot-grid {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+
+  .dot-grid__canvas {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dot-grid__canvas {
+    /* Engine renders a single static frame and stops the loop. */
+  }
+}

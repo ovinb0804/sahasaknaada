@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1500" viewBox="0 0 1200 1500" role="img" aria-label="Approved photo to be added — abstract placeholder">
+  <defs>
+    <radialGradient id="g3" cx="42%" cy="40%" r="74%">
+      <stop offset="0%" stop-color="#13161b"/>
+      <stop offset="100%" stop-color="#08080a"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="1500" fill="url(#g3)"/>
+  <g stroke="#e7b54a" fill="none" opacity="0.5">
+    <path d="M600,560 C520,640 680,720 600,800 C520,880 680,960 600,1040" stroke-width="3" opacity="0.7"/>
+    <path d="M600,560 C680,640 520,720 600,800 C680,880 520,960 600,1040" stroke-width="2" opacity="0.4"/>
+  </g>
+  <g stroke="#262626" stroke-width="1" opacity="0.6">
+    <path d="M0,560 L1200,560"/>
+    <path d="M0,800 L1200,800"/>
+    <path d="M0,1040 L1200,1040"/>
+  </g>
+  <text x="600" y="1180" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="34" font-weight="600" letter-spacing="6" fill="#e7b54a">APPROVED PHOTO</text>
+  <text x="600" y="1230" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="26" letter-spacing="4" fill="#a3a7af">to be added</text>
+</svg>

@@ -1,0 +1,35 @@
+/*
+ * GradualBlur — React Bits CSS.
+ * Layers fade in on mount (reveal) and stay; reduced-motion disables the
+ * transition but keeps the static blur.
+ */
+
+.gradual-blur {
+  display: block;
+}
+
+.gradual-blur__layer {
+  will-change: opacity;
+}
+
+/* Reveal: each layer animates to its target opacity shortly after mount.
+   The inline --gb-opacity custom property carries the per-layer peak. */
+.gradual-blur__layer {
+  animation: gradual-blur-reveal 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: 0.02s;
+  opacity: 0;
+}
+
+@keyframes gradual-blur-reveal {
+  to {
+    opacity: var(--gb-opacity, 0.8);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gradual-blur__layer {
+    animation: none;
+    opacity: var(--gb-opacity, 0.8);
+    transition: none;
+  }
+}
