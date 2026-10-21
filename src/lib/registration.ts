@@ -319,6 +319,8 @@ export type MembersRegistrationResult = {
 };
 
 /** Register several members of one school at once (atomic: all or none). */
+
+/** Register several members of one school at once (atomic: all or none). */
 export function registerMembers(
   code: string,
   members: MemberRegistrationInput[],
@@ -326,6 +328,8 @@ export function registerMembers(
   return rpc<MembersRegistrationResult>("register_members", {
     p_code: normalizeCode(code),
     p_members: members,
+  });
+}
 
 /* Admin-only member edits (enforced by RLS). */
 export function setMemberStatus(id: string, status: MemberStatus): Promise<void> {
@@ -341,3 +345,4 @@ export function setMemberNotes(id: string, notes: string): Promise<void> {
     updated_at: new Date().toISOString(),
   });
 }
+
