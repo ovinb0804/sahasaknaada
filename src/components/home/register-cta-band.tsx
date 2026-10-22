@@ -7,12 +7,9 @@ import { EVENT } from "@/lib/content";
 
 export function RegisterCtaBand() {
   return (
-    <section className="border-b border-hairline">
+    <section className="border-b border-[#e5a710] bg-[#f5b921] text-[#0a0a0a]">
       <div className="w-full px-5 py-20 sm:px-8 lg:px-14 xl:px-20 md:py-28">
-        <div
-          data-reveal
-          className="reveal relative overflow-hidden rounded-4xl border border-[#e5a710] bg-[#f5b921] px-8 py-14 text-[#0a0a0a] shadow-[0_20px_60px_-15px_rgba(245,185,33,0.35)] sm:px-14 md:py-20"
-        >
+        <div data-reveal className="reveal relative">
           <div className="relative flex flex-col items-start gap-8 md:flex-row md:items-end md:justify-between">
             <div className="max-w-2xl">
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#0a0a0a]/75">

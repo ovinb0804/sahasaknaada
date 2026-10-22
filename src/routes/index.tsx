@@ -5,7 +5,6 @@ import { SiteFooter } from "@/components/site-footer";
 import { Hero } from "@/components/home/hero";
 import { Themes } from "@/components/home/themes";
 import { Gallery } from "@/components/home/gallery";
-import { GalleryCta } from "@/components/home/gallery-cta";
 import { Agenda } from "@/components/home/agenda";
 import { Team } from "@/components/home/team";
 import { RegisterCtaBand } from "@/components/home/register-cta-band";
@@ -53,7 +52,6 @@ function Index() {
         <Hero />
         <Themes />
         <Gallery />
-        <GalleryCta />
         <Agenda />
         <Team />
         <RegisterCtaBand />

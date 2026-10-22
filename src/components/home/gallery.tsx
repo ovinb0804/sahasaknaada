@@ -4,6 +4,16 @@ import DriftWall from "@/components/bits/drift-wall";
 import { BlurText } from "@/components/bits/blur-text";
 import { GALLERY } from "@/lib/content";
 
+/*
+ * DriftWall's own mask feathers the top edge (and the sides via the ellipse).
+ * Same mask plus a matching feather at the bottom edge. Fade strength follows
+ * the `fade` prop (0.6 → --dw-edge = 40%).
+ */
+const WALL_MASK =
+  "radial-gradient(ellipse 78% 82% at 50% 46%, #000 var(--dw-edge), transparent 100%), " +
+  "linear-gradient(to top, #000 var(--dw-edge), transparent 100%), " +
+  "linear-gradient(to bottom, #000 var(--dw-edge), transparent 100%)";
+
 /** Wall geometry per screen width (set after mount so SSR markup matches). */
 function useWallLayout() {
   const [w, setW] = useState(1280);
@@ -76,6 +86,7 @@ export function Gallery() {
           fade={0.6}
           dim={0.55}
           overlayColor="#060010"
+          style={{ maskImage: WALL_MASK, WebkitMaskImage: WALL_MASK }}
         />
       </div>
     </section>

@@ -152,32 +152,32 @@ export const FAQS: FaqEntry[] = [
   {
     id: "f1",
     question: "Who can register?",
-    answer: "Confirmed by the organizer — placeholder answer to be added.",
-    isPlaceholder: true,
+    answer: "The workshop is open to students from any school, providing an opportunity to learn and engage with audio technology.",
+    isPlaceholder: false,
   },
   {
     id: "f2",
     question: "Is there a registration fee?",
-    answer: "Confirmed by the organizer — placeholder answer to be added.",
-    isPlaceholder: true,
+    answer: "No. Participation in the workshop is completely free of charge.",
+    isPlaceholder: false,
   },
   {
     id: "f3",
     question: "Where and when does the workshop take place?",
-    answer: "Confirmed by the organizer — placeholder answer to be added.",
-    isPlaceholder: true,
+    answer: "The workshop will be held on 13 November at D. S. Senanayake College.",
+    isPlaceholder: false,
   },
   {
     id: "f4",
     question: "What should I bring?",
-    answer: "Confirmed by the organizer — placeholder answer to be added.",
-    isPlaceholder: true,
+    answer: "Participants are advised to bring their own note-taking materials to record key information and insights during the sessions.",
+    isPlaceholder: false,
   },
   {
     id: "f5",
     question: "How will I know my registration is confirmed?",
-    answer: "Confirmed by the organizer — placeholder answer to be added.",
-    isPlaceholder: true,
+    answer: "Registered participants will be contacted via WhatsApp message or phone call to confirm their registration.",
+    isPlaceholder: false,
   },
 ];
 
