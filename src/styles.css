@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Sahasaknaada — design system.
+ * Sahasak Naada — design system.
  * Black canvas, soft-white type, restrained warm-gold surfaces.
  * Gold appears only on the three CTA/form surfaces; everywhere else is black.
  */
@@ -224,7 +224,7 @@
 }
 
 /*
- * Sahasaknaada — registration experience tokens + scoped utilities.
+ * Sahasak Naada — registration experience tokens + scoped utilities.
  *
  * Premium dark interface with restrained warm-gold accents. The form surface
  * is a raised dark panel (#14171C), never a bright yellow block. Gold is an

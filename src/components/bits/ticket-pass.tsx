@@ -1,5 +1,5 @@
 /*
- * TicketPass — the Sahasaknaada entry pass, built on TearTicket.
+ * TicketPass — the Sahasak Naada entry pass, built on TearTicket.
  *
  * The body shows the event identity + registration code; the tear-off
  * stub carries a high-contrast, scannable QR encoding the pass code for

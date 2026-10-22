@@ -50,7 +50,7 @@ export function SiteHeader() {
               <a
                 key={s.href}
                 href={s.href}
-                className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="rounded-md px-3 py-2 text-sm font-medium text-white transition-colors hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {s.label}
               </a>
@@ -87,8 +87,8 @@ export function SiteHeader() {
       <div
         id="mobile-menu"
         className={cn(
-          "relative z-20 overflow-hidden border-t border-hairline bg-background transition-[max-height] duration-300 ease-out",
-          open ? "max-h-80" : "max-h-0",
+          "relative z-20 overflow-hidden transition-[max-height] duration-300 ease-out",
+          open ? "max-h-80 bg-[#07080A]/95 backdrop-blur-md" : "max-h-0",
         )}
       >
         <nav
@@ -100,7 +100,7 @@ export function SiteHeader() {
               key={s.href}
               href={s.href}
               onClick={() => setOpen(false)}
-              className="rounded-md px-3 py-3 text-base font-medium text-foreground transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="rounded-md px-3 py-3 text-base font-medium text-white transition-colors hover:bg-white/5 hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {s.label}
             </a>

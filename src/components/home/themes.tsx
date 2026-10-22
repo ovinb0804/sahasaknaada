@@ -82,7 +82,7 @@ export function Themes() {
           className="reveal mt-12 max-w-2xl text-base leading-relaxed text-muted-foreground text-pretty md:mt-14"
         >
           <BlurText
-            text="Sound is the medium. Science is how we understand it. Creativity is what we do with it. Sahasaknaada brings students from different schools together to explore all three — hands on, in one room."
+            text="Sound is the medium. Science is how we understand it. Creativity is what we do with it. Sahasak Naada brings students from different schools together to explore all three — hands on, in one room."
             trigger="view"
             effect="blur"
             animateBy="words"

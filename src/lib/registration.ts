@@ -1,5 +1,5 @@
 /*
- * Sahasaknaada — registration data layer (Supabase).
+ * Sahasak Naada — registration data layer (Supabase).
  *
  * A *school* registers a team. Each team member gets a pass number and a
  * QR code (the QR encodes the member's pass code). On event day the check-in

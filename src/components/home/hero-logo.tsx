@@ -5,7 +5,7 @@ import { EVENT } from "@/lib/content";
 
 /**
  * Hero logo visual anchor. Uses the React Bits MetallicPaint (WebGL2) to pour
- * a warm-gold metallic finish over the approved Sahasaknaada logo, with the
+ * a warm-gold metallic finish over the approved Sahasak Naada logo, with the
  * logo's intro reveal. Falls back to the clean static logo when WebGL2 is
  * unavailable, on SSR, or when reduced motion is requested — never leaving a
  * blank or broken canvas.
@@ -46,7 +46,7 @@ export function HeroLogo() {
       ) : (
         <img
           src={EVENT.logoUrl}
-          alt="Sahasaknaada official event logo featuring microphone in hand and stylized lettering"
+          alt="Sahasak Naada official event logo featuring microphone in hand and stylized lettering"
           className="relative z-10 max-h-[34rem] w-full object-contain drop-shadow-[0_12px_28px_rgba(245,185,33,0.18)]"
         />
       )}

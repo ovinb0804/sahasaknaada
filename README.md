@@ -1,8 +1,8 @@
-# Sahasaknaada
+# Sahasak Naada
 
 **The Future of Sound Starts Here.**
 
-Sahasaknaada is an inter-school audio workshop organized by the **Radio Electronics Association of D. S. Senanayake College**. This repository documents the website experience, design system, registration flow, organizer dashboard requirements, component integrations, accessibility standards, and implementation safeguards for the project.
+Sahasak Naada is an inter-school audio workshop organized by the **Radio Electronics Association of D. S. Senanayake College**. This repository documents the website experience, design system, registration flow, organizer dashboard requirements, component integrations, accessibility standards, and implementation safeguards for the project.
 
 > **Project note:** This README describes the intended product and implementation requirements. It does not, by itself, prove that every route, backend integration, animation, or admin feature has been implemented or deployed. Update the implementation-status section as features are verified in the actual environment.
 
@@ -30,7 +30,7 @@ Sahasaknaada is an inter-school audio workshop organized by the **Radio Electron
 
 | Item | Details |
 |---|---|
-| Project | Sahasaknaada |
+| Project | Sahasak Naada |
 | Event type | Inter-school audio workshop |
 | Organizer | Radio Electronics Association of D. S. Senanayake College |
 | Main goal | Help students from other schools understand the workshop and register |
@@ -44,7 +44,7 @@ Sahasaknaada is an inter-school audio workshop organized by the **Radio Electron
 ## Core Principles
 
 1. **Do not invent event facts.** Dates, times, venue, fees, speakers, eligibility, registration deadlines, capacity, contacts, social links, agenda items, and FAQ answers must be confirmed by the organizers. Until then, use clearly marked editable placeholders or omit the information.
-2. **Keep inter-school and intra-school references separate.** Sahasaknaada is an **inter-school** workshop. The gallery is for approved photos from previous **intra-school** workshops or competitions held within D. S. Senanayake College. Do not present the gallery as documentation of previous inter-school events.
+2. **Keep inter-school and intra-school references separate.** Sahasak Naada is an **inter-school** workshop. The gallery is for approved photos from previous **intra-school** workshops or competitions held within D. S. Senanayake College. Do not present the gallery as documentation of previous inter-school events.
 3. **Prioritize registration usability.** Visitors should understand the purpose of the workshop and find the registration action quickly.
 4. **Motion supports content; it does not replace it.** Every essential message and interaction must remain available when animations are disabled or unsupported.
 5. **Keep content editable.** Agenda items, FAQ entries, gallery images, form fields, links, and configurable event details should be managed as structured data wherever the implementation allows.
@@ -67,7 +67,7 @@ Keep general event information on `/`. The `/register` route should focus on the
 
 The shared navigation should include:
 
-- Sahasaknaada or approved school/event identity on the left.
+- Sahasak Naada or approved school/event identity on the left.
 - Compact section links on desktop.
 - A prominent **Register** action that navigates to `/register`.
 - A usable mobile navigation pattern that keeps Register easy to reach.
@@ -80,13 +80,13 @@ The navbar must remain compact, readable, keyboard accessible, and free of horiz
 
 **Headline:** “The Future of Sound Starts Here”
 
-The hero introduces Sahasaknaada as an inter-school audio workshop exploring sound, audio technology, science, and creativity.
+The hero introduces Sahasak Naada as an inter-school audio workshop exploring sound, audio technology, science, and creativity.
 
 Design requirements:
 
 - Large, confident white typography with one restrained gold accent.
 - A short, clear description and a primary **Register Now** action.
-- The approved Sahasaknaada logo as a visual anchor where available.
+- The approved Sahasak Naada logo as a visual anchor where available.
 - MetallicPaint as an optional logo treatment when supported, with a static image fallback.
 - A subtle ambient background, not an overpowering video or WebGL scene.
 - A two-column desktop composition that becomes a well-spaced single column on mobile.
@@ -577,4 +577,4 @@ Before launch, confirm event content with the organizers, test real registration
 
 ---
 
-Made for **Sahasaknaada** — Radio Electronics Association of D. S. Senanayake College.
+Made for **Sahasak Naada** — Radio Electronics Association of D. S. Senanayake College.

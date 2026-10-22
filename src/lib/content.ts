@@ -1,9 +1,9 @@
 /*
- * Sahasaknaada — editable content.
+ * Sahasak Naada — editable content.
  *
  * All unconfirmed values live here as clearly-labelled placeholders so the
  * organizers can replace them in one place. Confirmed facts only:
- *   - Event: Sahasaknaada — inter-school audio workshop
+ *   - Event: Sahasak Naada — inter-school audio workshop
  *   - Host: Radio Electronics Association of D. S. Senanayake College
  *   - Themes: Sound / Science / Creativity
  *   - Hero headline: "The Future of Sound Starts Here"
@@ -13,14 +13,14 @@
 export type NavSection = { label: string; href: string };
 
 export const EVENT = {
-  name: "Sahasaknaada",
-  edition: "Sahasaknaada '26",
+  name: "Sahasak Naada",
+  edition: "Sahasak Naada '26",
   tagline: "Inter-school audio workshop",
   host: "Radio Electronics Association of D. S. Senanayake College",
   heroHeadline: "The Future of Sound Starts Here",
   heroAccentWord: "Sound",
   heroCopy:
-    "Sahasaknaada is an inter-school audio workshop by The Radio Electronics Association of D. S. Senanayake College — bringing students together to explore sound, audio technology and creativity.",
+    "Sahasak Naada is an inter-school audio workshop by The Radio Electronics Association of D. S. Senanayake College — bringing students together to explore sound, audio technology and creativity.",
   /** WhatsApp group invite link shown after a school registers. Leave empty until the organizers supply it. */
   whatsappGroupUrl: "https://chat.whatsapp.com/BF0zJgiSR8b6BPAiKCRcZB",
   /** Approved official event logo */

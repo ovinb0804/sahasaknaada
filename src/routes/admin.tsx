@@ -16,11 +16,11 @@ import { ExportPanel } from "@/components/admin/export";
 export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [
-      { title: "Organizer Dashboard — Sahasaknaada" },
+      { title: "Organizer Dashboard — Sahasak Naada" },
       {
         name: "description",
         content:
-          "Private organizer dashboard for Sahasaknaada registrations, check-in and reports.",
+          "Private organizer dashboard for Sahasak Naada registrations, check-in and reports.",
       },
       { name: "robots", content: "noindex" },
     ],

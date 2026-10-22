@@ -14,13 +14,13 @@ import { useReveal } from "@/hooks/use-reveal";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Sahasaknaada — Inter-school Audio Workshop" },
+      { title: "Sahasak Naada — Inter-school Audio Workshop" },
       {
         name: "description",
         content:
-          "Sahasaknaada is an inter-school audio workshop by The Radio Electronics Association of D. S. Senanayake College. Register to explore sound, science and creativity.",
+          "Sahasak Naada is an inter-school audio workshop by The Radio Electronics Association of D. S. Senanayake College. Register to explore sound, science and creativity.",
       },
-      { property: "og:title", content: "Sahasaknaada — Inter-school Audio Workshop" },
+      { property: "og:title", content: "Sahasak Naada — Inter-school Audio Workshop" },
       {
         property: "og:description",
         content:

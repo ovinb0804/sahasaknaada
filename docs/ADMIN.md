@@ -1,4 +1,4 @@
-# Sahasaknaada admin guide
+# Sahasak Naada admin guide
 
 ## Who can sign in
 `/admin` is limited to rows in the `staff` table. There are two roles:

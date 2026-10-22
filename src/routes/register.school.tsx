@@ -34,11 +34,11 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/register/school")({
   head: () => ({
     meta: [
-      { title: "Register your school — Sahasaknaada" },
+      { title: "Register your school — Sahasak Naada" },
       {
         name: "description",
         content:
-          "Register your school for Sahasaknaada and receive your official code and QR pass for delegate registration.",
+          "Register your school for Sahasak Naada and receive your official code and QR pass for delegate registration.",
       },
     ],
   }),
@@ -273,7 +273,7 @@ function SchoolRegistration() {
 
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[#A5A9B2] sm:text-base text-pretty">
           Provide your school and radio club information so we can generate your institution's
-          registration code and QR pass for Sahasaknaada.
+          registration code and QR pass for Sahasak Naada.
         </p>
       </div>
 
@@ -301,7 +301,7 @@ function SchoolRegistration() {
               </h2>
               <p className="mt-2 text-sm text-[#A5A9B2]">
                 Our records show a registration under this name or email. Please reach out to the
-                Sahasaknaada organizing team so we can verify your entry and share your school code.
+                Sahasak Naada organizing team so we can verify your entry and share your school code.
               </p>
             </div>
             <div className="mt-4 flex flex-wrap gap-3">
@@ -575,7 +575,7 @@ function SchoolSuccess({ schoolName, code }: { schoolName: string; code: string 
               {code}
             </p>
             <p className="mt-2 text-xs sm:text-sm text-[#A5A9B2]">
-              Students enter this code when registering their entry passes for Sahasaknaada.
+              Students enter this code when registering their entry passes for Sahasak Naada.
             </p>
 
             <div className="mt-5 flex flex-wrap gap-2.5">

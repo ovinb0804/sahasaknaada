@@ -5,7 +5,7 @@ import { EVENT } from "@/lib/content";
 /*
  * LoadingScreen — premium intro overlay shown once on first app load.
  *
- * Dark canvas, the approved Sahasaknaada logo as the visual anchor with a
+ * Dark canvas, the approved Sahasak Naada logo as the visual anchor with a
  * soft warm-gold ambient bloom, the wordmark + tagline, and a restrained
  * sound-waveform "loading" indicator. Fades out cleanly after the assets /
  * page have had time to settle, then unmounts so it never blocks the UI.

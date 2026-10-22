@@ -10,11 +10,11 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/register/")({
   head: () => ({
     meta: [
-      { title: "Register — Sahasaknaada" },
+      { title: "Register — Sahasak Naada" },
       {
         name: "description",
         content:
-          "Register for Sahasaknaada, the inter-school audio workshop by The Radio Electronics Association of D. S. Senanayake College.",
+          "Register for Sahasak Naada, the inter-school audio workshop by The Radio Electronics Association of D. S. Senanayake College.",
       },
     ],
   }),
@@ -36,7 +36,7 @@ function RegisterEntry() {
     <RegisterShell>
       <BackLink to="/">Back to home</BackLink>
       <h1 className="font-display text-4xl font-bold leading-tight tracking-tight text-white text-balance sm:text-5xl">
-        Register for <span className="text-[#F5B921]">Sahasaknaada</span>
+        Register for <span className="text-[#F5B921]">Sahasak Naada</span>
       </h1>
       <p className="mt-3 max-w-2xl text-base text-[var(--reg-text-2)]">
         Registration is school-first. A school registers once and receives a short code and a QR

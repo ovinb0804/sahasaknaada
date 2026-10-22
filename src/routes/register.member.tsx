@@ -36,11 +36,11 @@ export const Route = createFileRoute("/register/member")({
   }),
   head: () => ({
     meta: [
-      { title: "Register members — Sahasaknaada" },
+      { title: "Register members — Sahasak Naada" },
       {
         name: "description",
         content:
-          "Register student delegates for Sahasaknaada using your school's unique registration code.",
+          "Register student delegates for Sahasak Naada using your school's unique registration code.",
       },
     ],
   }),
@@ -258,7 +258,7 @@ function MemberRegistration() {
         </h1>
 
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[#A5A9B2] sm:text-base text-pretty">
-          Enter your school code once, then add the details of students attending Sahasaknaada from
+          Enter your school code once, then add the details of students attending Sahasak Naada from
           your institution.
         </p>
       </div>

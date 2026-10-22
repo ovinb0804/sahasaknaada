@@ -79,16 +79,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Sahasaknaada — Inter-school Audio Workshop" },
+      { title: "Sahasak Naada — Inter-school Audio Workshop" },
       {
         name: "description",
         content:
-          "Sahasaknaada — an inter-school audio workshop by The Radio Electronics Association of D. S. Senanayake College. The future of sound starts here.",
+          "Sahasak Naada — an inter-school audio workshop by The Radio Electronics Association of D. S. Senanayake College. The future of sound starts here.",
       },
       { name: "author", content: "Radio Electronics Association of D. S. Senanayake College" },
       {
         property: "og:title",
-        content: "Sahasaknaada — Inter-school Audio Workshop",
+        content: "Sahasak Naada — Inter-school Audio Workshop",
       },
       {
         property: "og:description",

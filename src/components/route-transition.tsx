@@ -7,7 +7,7 @@ import { EVENT } from "@/lib/content";
  * RouteTransition — branded loading overlay shown during route navigation.
  *
  * When the router enters a pending state (e.g. navigating from "/" to
- * "/register"), this overlay fades in with the same Sahasaknaada identity
+ * "/register"), this overlay fades in with the same Sahasak Naada identity
  * treatment as the intro screen: dark canvas, the approved logo with a soft
  * warm-gold bloom, the wordmark + tagline, and a restrained sound-waveform
  * indicator. It fades out cleanly once the destination route finishes loading.

@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { EVENT } from "@/lib/content";
 
 /**
- * Sahasaknaada wordmark. A clean, restrained emblem — not an invented
+ * Sahasak Naada wordmark. A clean, restrained emblem — not an invented
  * official school crest. Replace the mark with the supplied approved logo
  * asset when provided (see src/lib/content.ts → EVENT).
  */
@@ -32,13 +32,13 @@ export function Logo({ className, onDark = true }: { className?: string; onDark?
       <span className="flex flex-col leading-none">
         <span
           className={cn(
-            "font-display text-base font-bold tracking-tight",
-            onDark ? "text-foreground" : "text-foreground",
+            "font-display text-base font-bold tracking-tight transition-colors group-hover:text-gold",
+            onDark ? "text-white" : "text-foreground",
           )}
         >
           {EVENT.name}
         </span>
-        <span className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+        <span className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.18em] text-white/70">
           {EVENT.tagline}
         </span>
       </span>

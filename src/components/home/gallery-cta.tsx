@@ -28,7 +28,7 @@ export function GalleryCta() {
                 />
               </h2>
               <p className="mt-4 text-base font-medium leading-relaxed text-[#0a0a0a]/80">
-                Schools from anywhere are welcome to register a team and take part in Sahasaknaada.
+                Schools from anywhere are welcome to register a team and take part in Sahasak Naada.
               </p>
             </div>
 
