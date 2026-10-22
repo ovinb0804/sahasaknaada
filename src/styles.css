@@ -846,6 +846,8 @@
   display: grid;
   place-items: center;
   overflow: hidden;
+  /* Solid fallback; with backdrop-filter support the page behind (the hero)
+     shows through as a blurred image. */
   background: #07080a;
   opacity: 1;
   transform: scale(1);
@@ -853,6 +855,13 @@
     opacity var(--pl-exit, 900ms) cubic-bezier(0.65, 0, 0.35, 1),
     transform var(--pl-exit, 900ms) cubic-bezier(0.65, 0, 0.35, 1);
   will-change: opacity, transform;
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .pl-overlay {
+    background: rgba(7, 8, 10, 0.5);
+    -webkit-backdrop-filter: blur(36px) saturate(1.25);
+    backdrop-filter: blur(36px) saturate(1.25);
+  }
 }
 .pl-overlay[data-phase="hide"] {
   opacity: 0;

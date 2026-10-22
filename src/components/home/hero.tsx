@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 
 import DarkVeil from "@/components/bits/dark-veil";
@@ -6,18 +7,55 @@ import { LiquidGlassButton } from "@/components/ui/liquid-glass-button";
 import { EVENT } from "@/lib/content";
 import { HeroLogo } from "@/components/home/hero-logo";
 
+/**
+ * The veil is shaped relative to its own height, so a tall, narrow box (a phone)
+ * stretches it. On portrait heroes we render it in a landscape box (width and
+ * height swapped) and rotate that box 90° to cover the hero — correct proportions,
+ * full coverage, no hard edge.
+ */
+function HeroVeil() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => {
+      setSize({ w: Math.round(e.contentRect.width), h: Math.round(e.contentRect.height) });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const portrait = !!size && size.h > size.w * 1.15;
+
+  return (
+    <div ref={ref} className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
+      {portrait && size ? (
+        <div
+          style={{
+            position: "absolute",
+            left: "50%",
+            top: "50%",
+            width: size.h,
+            height: size.w,
+            transform: "translate(-50%, -50%) rotate(90deg)",
+          }}
+        >
+          <DarkVeil className="h-full w-full" color="#b4b4c4" glow={0.2} mouseInteraction={false} />
+        </div>
+      ) : (
+        <DarkVeil className="h-full w-full" color="#b4b4c4" glow={0.2} />
+      )}
+    </div>
+  );
+}
+
 export function Hero() {
   return (
     <section className="relative -mt-16 overflow-hidden border-b border-hairline">
-      {/* DarkVeil shader background */}
-      {/* The veil is shaped by its height, so on tall, narrow phones it gets stretched.
-          Cap its height relative to the width and fade the bottom edge instead. */}
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 z-0 h-full max-h-[135vw] w-full max-md:[mask-image:linear-gradient(to_bottom,#000_65%,transparent)] max-md:[-webkit-mask-image:linear-gradient(to_bottom,#000_65%,transparent)]"
-        aria-hidden
-      >
-        <DarkVeil className="h-full w-full" color="#b4b4c4" glow={0.2} />
-      </div>
+      {/* DarkVeil shader background (fills the whole hero, see HeroVeil) */}
+      <HeroVeil />
 
       <div className="relative z-10 grid w-full gap-12 px-5 pb-20 pt-32 sm:px-8 lg:px-14 xl:px-20 md:grid-cols-[1.05fr_1fr] md:gap-10 md:pb-28 md:pt-40">
         {/* Left: copy */}
