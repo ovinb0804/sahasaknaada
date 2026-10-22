@@ -49,8 +49,16 @@ export function SiteFooter() {
 
         <div className="mt-12 flex flex-col items-start justify-between gap-4 border-t border-hairline pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center">
           <p>
-            © {year} {EVENT.host}. Placeholder — replace with the confirmed edition year.
+            © {year} {EVENT.host}.
           </p>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+              Designed &amp; Developed by
+            </span>
+            <span className="font-display text-xs font-black tracking-widest text-gold bg-gold/10 border border-gold/30 px-2.5 py-0.5 rounded-md shadow-[0_0_12px_rgba(245,185,33,0.18)] select-none">
+              THENUX
+            </span>
+          </div>
           <Link
             to="/admin"
             className="rounded-md px-2 py-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
