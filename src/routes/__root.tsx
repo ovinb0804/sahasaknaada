@@ -83,9 +83,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "Sahasaknaada — an inter-school audio workshop by the Radio Club of D. S. Senanayake College. The future of sound starts here.",
+          "Sahasaknaada — an inter-school audio workshop by The Radio Electronics Association of D. S. Senanayake College. The future of sound starts here.",
       },
-      { name: "author", content: "Radio Club of D. S. Senanayake College" },
+      { name: "author", content: "Radio Electronics Association of D. S. Senanayake College" },
       {
         property: "og:title",
         content: "Sahasaknaada — Inter-school Audio Workshop",
@@ -93,7 +93,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         property: "og:description",
         content:
-          "An inter-school audio workshop by the Radio Club of D. S. Senanayake College. The future of sound starts here.",
+          "An inter-school audio workshop by The Radio Electronics Association of D. S. Senanayake College. The future of sound starts here.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

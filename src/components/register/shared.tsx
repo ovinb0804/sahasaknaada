@@ -22,7 +22,7 @@ export function RegisterShell({ children, narrow = false }: { children: ReactNod
       <main
         className={cn(
           "relative z-10 mx-auto w-full px-5 py-8 sm:px-8 md:py-12",
-          narrow ? "max-w-4xl" : "max-w-5xl",
+          narrow ? "max-w-6xl" : "max-w-none lg:px-14 xl:px-20",
         )}
       >
         {children}

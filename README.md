@@ -2,7 +2,7 @@
 
 **The Future of Sound Starts Here.**
 
-Sahasaknaada is an inter-school audio workshop organized by the **Radio Club of D. S. Senanayake College**. This repository documents the website experience, design system, registration flow, organizer dashboard requirements, component integrations, accessibility standards, and implementation safeguards for the project.
+Sahasaknaada is an inter-school audio workshop organized by the **Radio Electronics Association of D. S. Senanayake College**. This repository documents the website experience, design system, registration flow, organizer dashboard requirements, component integrations, accessibility standards, and implementation safeguards for the project.
 
 > **Project note:** This README describes the intended product and implementation requirements. It does not, by itself, prove that every route, backend integration, animation, or admin feature has been implemented or deployed. Update the implementation-status section as features are verified in the actual environment.
 
@@ -32,7 +32,7 @@ Sahasaknaada is an inter-school audio workshop organized by the **Radio Club of 
 |---|---|
 | Project | Sahasaknaada |
 | Event type | Inter-school audio workshop |
-| Organizer | Radio Club of D. S. Senanayake College |
+| Organizer | Radio Electronics Association of D. S. Senanayake College |
 | Main goal | Help students from other schools understand the workshop and register |
 | Visual identity | Near-black, white, charcoal, and restrained warm gold |
 | Public experience | Landing page, event information, gallery, agenda, FAQ, and registration |
@@ -139,7 +139,7 @@ Do not publish answers until they are confirmed. Use real buttons with correct e
 
 ### 8. Footer
 
-Keep the footer minimal and consistent with the rest of the site. It may include the approved event identity, “Radio Club of D. S. Senanayake College,” confirmed contact details, approved social links, and a copyright line. Keep unconfirmed contacts and URLs as editable placeholders; never fabricate them.
+Keep the footer minimal and consistent with the rest of the site. It may include the approved event identity, “Radio Electronics Association of D. S. Senanayake College,” confirmed contact details, approved social links, and a copyright line. Keep unconfirmed contacts and URLs as editable placeholders; never fabricate them.
 
 ## Registration Experience
 
@@ -577,4 +577,4 @@ Before launch, confirm event content with the organizers, test real registration
 
 ---
 
-Made for **Sahasaknaada** — Radio Club of D. S. Senanayake College.
+Made for **Sahasaknaada** — Radio Electronics Association of D. S. Senanayake College.

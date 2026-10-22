@@ -4,7 +4,7 @@
  * All unconfirmed values live here as clearly-labelled placeholders so the
  * organizers can replace them in one place. Confirmed facts only:
  *   - Event: Sahasaknaada — inter-school audio workshop
- *   - Host: Radio Club of D. S. Senanayake College
+ *   - Host: Radio Electronics Association of D. S. Senanayake College
  *   - Themes: Sound / Science / Creativity
  *   - Hero headline: "The Future of Sound Starts Here"
  * No real dates, venues, fees, contacts or photos have been supplied.
@@ -16,11 +16,11 @@ export const EVENT = {
   name: "Sahasaknaada",
   edition: "Sahasaknaada '26",
   tagline: "Inter-school audio workshop",
-  host: "Radio Club of D. S. Senanayake College",
+  host: "Radio Electronics Association of D. S. Senanayake College",
   heroHeadline: "The Future of Sound Starts Here",
   heroAccentWord: "Sound",
   heroCopy:
-    "Sahasaknaada is an inter-school audio workshop by the Radio Club of D. S. Senanayake College — bringing students together to explore sound, audio technology and creativity.",
+    "Sahasaknaada is an inter-school audio workshop by The Radio Electronics Association of D. S. Senanayake College — bringing students together to explore sound, audio technology and creativity.",
   /** WhatsApp group invite link shown after a school registers. Leave empty until the organizers supply it. */
   whatsappGroupUrl: "https://chat.whatsapp.com/BF0zJgiSR8b6BPAiKCRcZB",
   /** Approved official event logo */
@@ -63,10 +63,10 @@ export type GalleryItem = {
 export const GALLERY: GalleryItem[] = [
   {
     id: "g1",
-    title: "Radio Club delegation",
+    title: "Association delegation",
     caption: "Intra-school workshop session at D. S. Senanayake College",
     src: "https://vibe.filesafe.space/1792255075376368762/attachments/1b393843-7b24-412a-9889-275305f60e89.jpg",
-    alt: "Radio Club students and instructor gathered after an intra-school session at D. S. Senanayake College",
+    alt: "Radio Electronics Association students and instructor gathered after an intra-school session at D. S. Senanayake College",
   },
   {
     id: "g2",

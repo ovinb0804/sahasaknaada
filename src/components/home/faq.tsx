@@ -30,7 +30,7 @@ export function Faq() {
         className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-b from-background/40 via-background/10 to-background/60"
         aria-hidden
       />
-      <div className="relative z-10 mx-auto w-full max-w-3xl px-5 py-20 sm:px-8 md:py-28">
+      <div className="relative z-10 w-full px-5 py-20 sm:px-8 lg:px-14 xl:px-20 md:py-28">
         <div className="mb-10 text-center">
           <h2 className="font-display text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
             FAQ

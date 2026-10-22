@@ -7,9 +7,8 @@ import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { LiquidGlassButton } from "@/components/ui/liquid-glass-button";
 import { NAV_SECTIONS, EVENT } from "@/lib/content";
-import { GradualBlur } from "@/components/bits/gradual-blur";
+import GradualBlur from "@/components/bits/gradual-blur";
 
-import "@/components/bits/gradual-blur.css";
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
@@ -30,22 +29,20 @@ export function SiteHeader() {
       <GradualBlur
         position="top"
         target="page"
-        height="6rem"
-        strength={2}
-        layers={8}
+        height="7rem"
+        strength={2.5}
+        layers={10}
         curve="bezier"
         exponential
-        opacity={0.8}
-        saturation={1}
-        tint="#07080A"
-        duration={0.3}
+        opacity={1}
+        saturation={1.1}
+        tint="rgba(7, 8, 10, 0.88)"
         zIndex={0}
       />
 
-      {/* Nav content sits above the blur. Translucent near-black surface with
-          a fine border; the GradualBlur supplies the soft atmospheric edge. */}
-      <div className="relative z-10 border-b border-hairline/80 bg-background/72 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
-        <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-4 px-5 sm:px-8">
+      {/* The GradualBlur above is the nav background: no bar, no border. */}
+      <div className="relative z-10">
+        <div className="flex h-16 w-full items-center justify-between gap-4 px-5 sm:px-8 lg:px-14 xl:px-20">
           <Logo />
 
           <nav aria-label="Page sections" className="hidden items-center gap-1 md:flex">
@@ -78,7 +75,7 @@ export function SiteHeader() {
               aria-expanded={open}
               aria-controls="mobile-menu"
               onClick={() => setOpen((v) => !v)}
-              className="apple-liquid-glass grid h-9 w-9 p-0 rounded-xl md:hidden"
+              className="apple-liquid-glass grid h-9 w-9 p-0 rounded-xl"
             >
               {open ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
             </button>
@@ -90,13 +87,13 @@ export function SiteHeader() {
       <div
         id="mobile-menu"
         className={cn(
-          "relative z-20 overflow-hidden border-t border-hairline bg-background transition-[max-height] duration-300 ease-out md:hidden",
+          "relative z-20 overflow-hidden border-t border-hairline bg-background transition-[max-height] duration-300 ease-out",
           open ? "max-h-80" : "max-h-0",
         )}
       >
         <nav
           aria-label="Mobile page sections"
-          className="mx-auto flex w-full max-w-6xl flex-col gap-1 px-5 py-4"
+          className="flex w-full flex-col gap-1 px-5 py-4 sm:px-8 lg:px-14 xl:px-20"
         >
           {NAV_SECTIONS.map((s) => (
             <a

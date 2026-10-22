@@ -14,7 +14,7 @@ export const Route = createFileRoute("/register/")({
       {
         name: "description",
         content:
-          "Register for Sahasaknaada, the inter-school audio workshop by the Radio Club of D. S. Senanayake College.",
+          "Register for Sahasaknaada, the inter-school audio workshop by The Radio Electronics Association of D. S. Senanayake College.",
       },
     ],
   }),

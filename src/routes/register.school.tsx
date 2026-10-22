@@ -335,7 +335,7 @@ function SchoolRegistration() {
               </h2>
               <p className="mt-2 text-sm text-[#A5A9B2]">
                 Online registrations for schools are not open at this time. Please check back later or
-                contact the Radio Club of D. S. Senanayake College.
+                contact the Radio Electronics Association of D. S. Senanayake College.
               </p>
             </div>
             <div className="mt-4">

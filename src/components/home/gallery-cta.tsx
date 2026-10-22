@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 export function GalleryCta() {
   return (
     <section className="border-b border-hairline">
-      <div className="mx-auto w-full max-w-6xl px-5 py-16 sm:px-8 md:py-20">
+      <div className="w-full px-5 py-16 sm:px-8 lg:px-14 xl:px-20 md:py-20">
         <div
           data-reveal
           className="reveal relative overflow-hidden rounded-3xl border border-[#e5a710] bg-[#f5b921] px-8 py-12 text-[#0a0a0a] shadow-[0_16px_50px_-12px_rgba(245,185,33,0.35)] sm:px-14 md:py-16"

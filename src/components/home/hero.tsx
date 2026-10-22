@@ -14,7 +14,7 @@ export function Hero() {
         aria-hidden
       />
 
-      <div className="relative z-10 mx-auto grid w-full max-w-7xl gap-12 px-5 pb-20 pt-16 sm:px-8 md:grid-cols-[1.05fr_1fr] md:gap-10 md:pb-28 md:pt-24">
+      <div className="relative z-10 grid w-full gap-12 px-5 pb-20 pt-16 sm:px-8 lg:px-14 xl:px-20 md:grid-cols-[1.05fr_1fr] md:gap-10 md:pb-28 md:pt-24">
         {/* Left: copy */}
         <div className="flex flex-col justify-center">
           <p data-reveal className="text-xs font-medium uppercase tracking-[0.22em] text-gold">

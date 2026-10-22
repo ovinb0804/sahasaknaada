@@ -109,7 +109,7 @@ export function TicketPass({ code, name }: { code: string; name: string }) {
     // Footer line
     ctx.fillStyle = "#A3A3A3";
     ctx.font = "500 14px 'Manrope', system-ui, sans-serif";
-    ctx.fillText("Scan this QR at the door · Radio Club of D. S. Senanayake College", 48, H - 40);
+    ctx.fillText("Scan this QR at the door · Radio Electronics Association of D. S. Senanayake College", 48, H - 40);
 
     return canvas;
   };

@@ -8,7 +8,7 @@ import { EVENT } from "@/lib/content";
 export function RegisterCtaBand() {
   return (
     <section className="border-b border-hairline">
-      <div className="mx-auto w-full max-w-6xl px-5 py-20 sm:px-8 md:py-28">
+      <div className="w-full px-5 py-20 sm:px-8 lg:px-14 xl:px-20 md:py-28">
         <div
           data-reveal
           className="reveal relative overflow-hidden rounded-4xl border border-[#e5a710] bg-[#f5b921] px-8 py-14 text-[#0a0a0a] shadow-[0_20px_60px_-15px_rgba(245,185,33,0.35)] sm:px-14 md:py-20"

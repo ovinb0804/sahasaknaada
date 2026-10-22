@@ -18,13 +18,13 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Sahasaknaada is an inter-school audio workshop by the Radio Club of D. S. Senanayake College. Register to explore sound, science and creativity.",
+          "Sahasaknaada is an inter-school audio workshop by The Radio Electronics Association of D. S. Senanayake College. Register to explore sound, science and creativity.",
       },
       { property: "og:title", content: "Sahasaknaada — Inter-school Audio Workshop" },
       {
         property: "og:description",
         content:
-          "An inter-school audio workshop by the Radio Club of D. S. Senanayake College. The future of sound starts here.",
+          "An inter-school audio workshop by The Radio Electronics Association of D. S. Senanayake College. The future of sound starts here.",
       },
       { property: "og:type", content: "website" },
       {

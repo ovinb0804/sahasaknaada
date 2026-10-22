@@ -25,11 +25,7 @@ export function HeroLogo() {
   }, []);
 
   return (
-    <div className="ambient-gold-soft relative flex aspect-square w-full max-w-2xl items-center justify-center overflow-hidden rounded-3xl border border-hairline bg-surface/80 p-3 sm:p-4">
-      <div
-        className="pointer-events-none absolute inset-0 rounded-3xl bg-gradient-to-b from-transparent via-transparent to-black/40"
-        aria-hidden
-      />
+    <div className="ambient-gold-soft relative flex aspect-square w-full max-w-2xl items-center justify-center overflow-hidden p-3 sm:p-4">
       {mode === "paint" ? (
         <MetallicPaint
           imageSrc={EVENT.logoUrl}

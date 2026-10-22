@@ -7,7 +7,7 @@ export function SiteFooter() {
   const year = COPYRIGHT_YEAR;
   return (
     <footer className="border-t border-hairline bg-background">
-      <div className="mx-auto w-full max-w-6xl px-5 py-14 sm:px-8">
+      <div className="w-full px-5 py-14 sm:px-8 lg:px-14 xl:px-20">
         <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
           <div className="max-w-sm">
             <Logo />

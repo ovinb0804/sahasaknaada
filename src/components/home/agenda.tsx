@@ -4,7 +4,7 @@ import { AGENDA } from "@/lib/content";
 export function Agenda() {
   return (
     <section id="agenda" className="border-b border-hairline">
-      <div className="mx-auto w-full max-w-6xl px-5 py-20 sm:px-8 md:py-28">
+      <div className="w-full px-5 py-20 sm:px-8 lg:px-14 xl:px-20 md:py-28">
         <div className="grid gap-10 md:grid-cols-[0.4fr_0.6fr] md:gap-16">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">
