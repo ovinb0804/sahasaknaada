@@ -32,6 +32,7 @@ export interface DriftWallProps {
   overlayColor?: string;
   className?: string;
   style?: CSSProperties;
+  onItemClick?: (item: DriftWallItem) => void;
 }
 
 interface ColumnMeta {
@@ -81,7 +82,8 @@ const DriftWall = ({
   grayscale = false,
   overlayColor = '#060010',
   className = '',
-  style
+  style,
+  onItemClick
 }: DriftWallProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const planeRef = useRef<HTMLDivElement>(null);
@@ -318,7 +320,19 @@ const DriftWall = ({
       'data-tile-id': id,
       'data-col': colIndex,
       onFocus: () => activate(id, colIndex),
-      onBlur: release
+      onBlur: release,
+      onClick: (e: React.MouseEvent) => {
+        if (!item.href) {
+          e.preventDefault();
+          onItemClick?.(item);
+        }
+      },
+      onKeyDown: (e: React.KeyboardEvent) => {
+        if (!item.href && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          onItemClick?.(item);
+        }
+      }
     };
     if (item.href) {
       return (
