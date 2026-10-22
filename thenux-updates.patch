@@ -1,0 +1,3742 @@
+diff --git a/src/components/admin/checkin-desk.tsx b/src/components/admin/checkin-desk.tsx
+index d49c665..0a0c593 100644
+--- a/src/components/admin/checkin-desk.tsx
++++ b/src/components/admin/checkin-desk.tsx
+@@ -1,10 +1,26 @@
+ /*
+- * Event-day check-in desk: search by name, reference (SSA-0007 or 7), school name,
+- * school short code or pass code, then press one Check in button. The database does
+- * the check-in atomically, so a repeat press never creates a second attendance record.
++ * Event-day check-in desk: fast search by name, reference (SSA-0007), school name,
++ * school short code or pass code. Scanning a pass QR checks the person in atomically.
++ * Includes audio confirmation chime, digital pass preview, filter pills, and recent arrivals feed.
+  */
+-import { useMemo, useRef, useState } from "react";
+-import { CheckCircle2, Loader2, Search, Undo2 } from "lucide-react";
++import { useEffect, useMemo, useRef, useState } from "react";
++import {
++  AlertTriangle,
++  Check,
++  CheckCircle2,
++  Clock,
++  IdCard,
++  Loader2,
++  QrCode,
++  RotateCcw,
++  Search,
++  Undo2,
++  UserCheck,
++  Users,
++  Volume2,
++  VolumeX,
++  X,
++} from "lucide-react";
+ 
+ import { checkInMemberById, undoCheckIn, type School } from "@/lib/registration";
+ import {
+@@ -16,13 +32,21 @@ import {
+   type MemberRow,
+ } from "@/lib/admin-helpers";
+ import { cn } from "@/lib/utils";
++import {
++  Dialog,
++  DialogContent,
++  DialogHeader,
++  DialogTitle,
++} from "@/components/ui/dialog";
++import { PassCard } from "@/components/pass-card";
+ 
+ type Banner = { tone: "success" | "warn" | "error"; text: string };
+-const MAX_RESULTS = 10;
++type FilterMode = "all" | "pending" | "arrived" | "attention";
++const MAX_RESULTS = 12;
+ 
+ function matches(row: MemberRow, raw: string): boolean {
+   const q = raw.trim().toLowerCase();
+-  if (!q) return false;
++  if (!q) return true;
+   const { member: m, school: s } = row;
+   const digits = q.replace(/^ssa-?/, "");
+   if (/^\d{1,7}$/.test(digits) && m.member_no === Number(digits)) return true;
+@@ -35,17 +59,88 @@ function matches(row: MemberRow, raw: string): boolean {
+   );
+ }
+ 
++function playSuccessChime() {
++  try {
++    const AudioContextClass =
++      window.AudioContext ||
++      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
++    if (!AudioContextClass) return;
++    const ctx = new AudioContextClass();
++    const now = ctx.currentTime;
++    const osc = ctx.createOscillator();
++    const gain = ctx.createGain();
++
++    osc.type = "sine";
++    osc.connect(gain);
++    gain.connect(ctx.destination);
++
++    // Two-tone rising chime (D5 -> A5)
++    osc.frequency.setValueAtTime(587.33, now);
++    osc.frequency.exponentialRampToValueAtTime(880, now + 0.12);
++
++    gain.gain.setValueAtTime(0.18, now);
++    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
++
++    osc.start(now);
++    osc.stop(now + 0.35);
++  } catch {
++    /* audio unsupported or blocked */
++  }
++}
++
+ export function CheckInDesk({ schools, onChanged }: { schools: School[]; onChanged: () => void }) {
+   const [q, setQ] = useState("");
++  const [filterMode, setFilterMode] = useState<FilterMode>("all");
+   const [busyId, setBusyId] = useState<string | null>(null);
+   const [banner, setBanner] = useState<Banner | null>(null);
++  const [soundEnabled, setSoundEnabled] = useState(true);
++  const [previewPass, setPreviewPass] = useState<MemberRow | null>(null);
+   const inputRef = useRef<HTMLInputElement>(null);
+ 
+   const all = useMemo(() => flattenMembers(schools), [schools]);
+   const live = all.filter((r) => memberStatus(r.member) !== "cancelled");
+   const arrived = live.filter((r) => r.member.checked_in_at).length;
++  const pending = live.length - arrived;
++  const needsAttention = all.filter((r) => memberStatus(r.member) === "needs_review").length;
++
++  // Recent arrivals ticker
++  const recentArrivals = useMemo(
++    () =>
++      all
++        .filter((r) => r.member.checked_in_at)
++        .sort((a, b) => (b.member.checked_in_at ?? "").localeCompare(a.member.checked_in_at ?? ""))
++        .slice(0, 4),
++    [all],
++  );
++
++  // Global keydown to focus search with "/"
++  useEffect(() => {
++    const handleKey = (e: KeyboardEvent) => {
++      if (e.key === "/" && document.activeElement !== inputRef.current) {
++        e.preventDefault();
++        inputRef.current?.focus();
++      }
++    };
++    window.addEventListener("keydown", handleKey);
++    return () => window.removeEventListener("keydown", handleKey);
++  }, []);
++
++  const results = useMemo(() => {
++    return all.filter((r) => {
++      // Search query filter
++      if (!matches(r, q)) return false;
++
++      // Filter mode pill
++      const st = memberStatus(r.member);
++      const isChecked = Boolean(r.member.checked_in_at);
++
++      if (filterMode === "pending") return !isChecked && st !== "cancelled";
++      if (filterMode === "arrived") return isChecked;
++      if (filterMode === "attention") return st === "needs_review" || st === "cancelled";
++      return true;
++    });
++  }, [all, q, filterMode]);
+ 
+-  const results = useMemo(() => all.filter((r) => matches(r, q)), [all, q]);
+   const shown = results.slice(0, MAX_RESULTS);
+ 
+   async function checkIn(row: MemberRow) {
+@@ -55,6 +150,7 @@ export function CheckInDesk({ schools, onChanged }: { schools: School[]; onChang
+     try {
+       const res = await checkInMemberById(row.member.id);
+       if (res.result === "checked_in") {
++        if (soundEnabled) playSuccessChime();
+         setBanner({ tone: "success", text: `${row.member.full_name} is checked in.` });
+       } else if (res.result === "already_checked_in") {
+         setBanner({
+@@ -62,15 +158,24 @@ export function CheckInDesk({ schools, onChanged }: { schools: School[]; onChang
+           text: `Already checked in${res.checked_in_at ? ` at ${fmtUtcLocal(res.checked_in_at)}` : ""}.`,
+         });
+       } else if (res.result === "cancelled") {
+-        setBanner({ tone: "error", text: "This registration is cancelled, so it can't be checked in." });
++        setBanner({
++          tone: "error",
++          text: "This registration is cancelled, so it cannot be checked in.",
++        });
+       } else {
+-        setBanner({ tone: "error", text: "That registration no longer exists. Refresh and search again." });
++        setBanner({
++          tone: "error",
++          text: "Registration no longer exists. Please refresh the page.",
++        });
+       }
+       onChanged();
+       setQ("");
+       inputRef.current?.focus();
+     } catch (e) {
+-      setBanner({ tone: "error", text: e instanceof Error ? e.message : "Check-in failed. Try again." });
++      setBanner({
++        tone: "error",
++        text: e instanceof Error ? e.message : "Check-in failed. Try again.",
++      });
+     } finally {
+       setBusyId(null);
+     }
+@@ -83,145 +188,359 @@ export function CheckInDesk({ schools, onChanged }: { schools: School[]; onChang
+     setBanner(null);
+     try {
+       await undoCheckIn(row.member.id);
+-      setBanner({ tone: "warn", text: `Check-in undone for ${row.member.full_name}.` });
++      setBanner({ tone: "warn", text: `Check-in reversed for ${row.member.full_name}.` });
+       onChanged();
+     } catch (e) {
+-      setBanner({ tone: "error", text: e instanceof Error ? e.message : "Couldn't undo. Try again." });
++      setBanner({
++        tone: "error",
++        text: e instanceof Error ? e.message : "Couldn't undo. Try again.",
++      });
+     } finally {
+       setBusyId(null);
+     }
+   }
+ 
+   return (
+-    <div className="flex flex-col gap-6">
+-      <div className="flex flex-wrap items-end justify-between gap-3">
++    <div className="flex flex-col gap-6 animate-in fade-in-50 duration-300">
++      {/* Header and Live Progress */}
++      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+         <div>
+-          <h1 className="font-display text-3xl font-bold tracking-tight">Check-in</h1>
++          <div className="flex items-center gap-2">
++            <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">
++              Event Check-In Desk
++            </h1>
++            <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
++          </div>
+           <p className="mt-1 text-sm text-muted-foreground">
+-            Search by name, reference (e.g. SSA-0007), school or school code. Scanning a pass QR checks the person in.
++            Scan attendee QR code or type reference / school code to confirm attendance.
+           </p>
+         </div>
+-        <p className="rounded-full border border-hairline px-4 py-1.5 text-sm tabular-nums" aria-live="polite">
+-          <strong className="text-gold">{arrived}</strong> of {live.length} arrived
+-        </p>
++
++        {/* Live Attendance Pill & Audio Sound Toggle */}
++        <div className="flex items-center gap-3">
++          <button
++            type="button"
++            onClick={() => setSoundEnabled((v) => !v)}
++            title={soundEnabled ? "Audio chime enabled" : "Audio chime muted"}
++            className={cn(
++              "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition cursor-pointer",
++              soundEnabled
++                ? "border-gold/40 bg-gold/10 text-gold hover:bg-gold/20"
++                : "border-hairline bg-surface text-muted-foreground hover:text-foreground",
++            )}
++          >
++            {soundEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
++            <span>{soundEnabled ? "Chime on" : "Muted"}</span>
++          </button>
++
++          <div
++            className="flex items-center gap-2 rounded-full border border-gold/40 bg-gold/10 px-4 py-1.5 text-sm font-semibold tabular-nums text-foreground shadow-[0_0_15px_rgba(245,185,33,0.15)]"
++            aria-live="polite"
++          >
++            <CheckCircle2 className="h-4 w-4 text-gold" />
++            <span>
++              <strong className="text-gold font-bold">{arrived}</strong> / {live.length} Arrived
++            </span>
++          </div>
++        </div>
+       </div>
+ 
+-      <label className="relative block">
+-        <span className="sr-only">Search registrations</span>
+-        <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" aria-hidden />
+-        <input
+-          ref={inputRef}
+-          autoFocus
+-          type="search"
+-          value={q}
+-          onChange={(e) => {
+-            setQ(e.target.value);
+-            setBanner(null);
+-          }}
+-          onKeyDown={(e) => {
+-            // A barcode/QR scanner types the pass code and presses Enter. Only an EXACT
+-            // pass-code or reference match is checked in straight away; names never are.
+-            if (e.key !== "Enter") return;
+-            const typed = q.trim().toLowerCase();
+-            if (!typed) return;
+-            const exact = all.filter(
+-              (r) => r.member.pass_code.toLowerCase() === typed || memberRef(r.member).toLowerCase() === typed,
+-            );
+-            const only = exact.length === 1 ? exact[0] : undefined;
+-            if (only && !only.member.checked_in_at && memberStatus(only.member) !== "cancelled") {
+-              e.preventDefault();
+-              void checkIn(only);
+-            }
+-          }}
+-          placeholder="Start typing a name, reference or school code…"
+-          className="w-full rounded-2xl border border-border bg-surface py-4 pl-12 pr-4 text-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+-        />
+-      </label>
++      {/* Main Scanner Search Bar */}
++      <div className="relative">
++        <label className="relative block">
++          <span className="sr-only">Scan or search registrations</span>
++          <Search
++            className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gold/70"
++            aria-hidden
++          />
++          <input
++            ref={inputRef}
++            autoFocus
++            type="text"
++            value={q}
++            onChange={(e) => {
++              setQ(e.target.value);
++              setBanner(null);
++            }}
++            onKeyDown={(e) => {
++              if (e.key !== "Enter") return;
++              const typed = q.trim().toLowerCase();
++              if (!typed) return;
++              const exact = all.filter(
++                (r) =>
++                  r.member.pass_code.toLowerCase() === typed ||
++                  memberRef(r.member).toLowerCase() === typed,
++              );
++              const only = exact.length === 1 ? exact[0] : undefined;
++              if (only && !only.member.checked_in_at && memberStatus(only.member) !== "cancelled") {
++                e.preventDefault();
++                void checkIn(only);
++              }
++            }}
++            placeholder="Scan pass QR code or type reference (e.g. SSA-0007), name, school code…"
++            className="w-full rounded-2xl border border-hairline/80 bg-surface/90 py-4 pl-12 pr-28 text-base sm:text-lg text-foreground placeholder:text-muted-foreground focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30 shadow-xl transition"
++          />
++        </label>
++
++        {/* Clear and Hotkey Badge */}
++        <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
++          {q && (
++            <button
++              type="button"
++              onClick={() => {
++                setQ("");
++                inputRef.current?.focus();
++              }}
++              className="rounded-full p-1 text-muted-foreground hover:bg-surface hover:text-foreground cursor-pointer"
++            >
++              <X className="h-4 w-4" />
++            </button>
++          )}
++          <kbd className="hidden sm:inline-flex items-center rounded border border-hairline bg-background/80 px-2 py-0.5 font-mono text-[11px] text-muted-foreground">
++            /
++          </kbd>
++        </div>
++      </div>
++
++      {/* Quick Filter Pills */}
++      <div className="flex flex-wrap items-center gap-2">
++        <button
++          type="button"
++          onClick={() => setFilterMode("all")}
++          className={cn(
++            "rounded-xl px-3.5 py-1.5 text-xs font-semibold transition cursor-pointer",
++            filterMode === "all"
++              ? "bg-gold text-black shadow-md shadow-gold/20"
++              : "border border-hairline/60 bg-surface/60 text-muted-foreground hover:text-foreground",
++          )}
++        >
++          All Delegates ({live.length})
++        </button>
+ 
++        <button
++          type="button"
++          onClick={() => setFilterMode("pending")}
++          className={cn(
++            "rounded-xl px-3.5 py-1.5 text-xs font-semibold transition cursor-pointer",
++            filterMode === "pending"
++              ? "bg-gold text-black shadow-md shadow-gold/20"
++              : "border border-hairline/60 bg-surface/60 text-muted-foreground hover:text-foreground",
++          )}
++        >
++          Pending Arrival ({pending})
++        </button>
++
++        <button
++          type="button"
++          onClick={() => setFilterMode("arrived")}
++          className={cn(
++            "rounded-xl px-3.5 py-1.5 text-xs font-semibold transition cursor-pointer",
++            filterMode === "arrived"
++              ? "bg-gold text-black shadow-md shadow-gold/20"
++              : "border border-hairline/60 bg-surface/60 text-muted-foreground hover:text-foreground",
++          )}
++        >
++          Checked In ({arrived})
++        </button>
++
++        {needsAttention > 0 && (
++          <button
++            type="button"
++            onClick={() => setFilterMode("attention")}
++            className={cn(
++              "rounded-xl px-3.5 py-1.5 text-xs font-semibold transition cursor-pointer",
++              filterMode === "attention"
++                ? "bg-amber-400 text-black shadow-md shadow-amber-400/20"
++                : "border border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20",
++            )}
++          >
++            Needs Review ({needsAttention})
++          </button>
++        )}
++      </div>
++
++      {/* Animated Feedback Banner */}
+       {banner && (
+         <div
+           role={banner.tone === "error" ? "alert" : "status"}
+           className={cn(
+-            "flex items-center gap-3 rounded-xl border p-4 text-base font-medium",
+-            banner.tone === "success" && "border-gold/50 bg-gold/10 text-foreground",
+-            banner.tone === "warn" && "border-amber-400/50 bg-amber-400/10 text-foreground",
+-            banner.tone === "error" && "border-destructive/50 bg-destructive/10 text-foreground",
++            "flex items-center gap-3 rounded-2xl border p-4 text-base font-semibold shadow-lg animate-in zoom-in-95 duration-200",
++            banner.tone === "success" &&
++              "border-emerald-500/40 bg-emerald-500/15 text-emerald-400 shadow-emerald-500/10",
++            banner.tone === "warn" &&
++              "border-amber-400/40 bg-amber-400/15 text-amber-300 shadow-amber-400/10",
++            banner.tone === "error" &&
++              "border-destructive/40 bg-destructive/15 text-destructive shadow-destructive/10",
+           )}
+         >
+-          {banner.tone === "success" ? <CheckCircle2 className="h-5 w-5 text-gold" aria-hidden /> : null}
+-          {banner.text}
++          {banner.tone === "success" && <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />}
++          {banner.tone === "warn" && <Clock className="h-5 w-5 text-amber-400 shrink-0" />}
++          {banner.tone === "error" && <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />}
++          <span>{banner.text}</span>
++        </div>
++      )}
++
++      {/* Recent Arrivals Stream Bar */}
++      {recentArrivals.length > 0 && !q.trim() && (
++        <div className="rounded-2xl border border-hairline/60 bg-surface/50 p-4">
++          <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
++            <span className="flex items-center gap-1.5 text-gold">
++              <Clock className="h-3.5 w-3.5" /> Recent Arrivals
++            </span>
++            <span>Last {recentArrivals.length} scans</span>
++          </div>
++
++          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
++            {recentArrivals.map((row) => (
++              <div
++                key={row.member.id}
++                className="flex items-center justify-between gap-2 rounded-xl border border-hairline/40 bg-background/60 p-2.5"
++              >
++                <div className="min-w-0">
++                  <p className="truncate text-xs font-bold text-foreground">
++                    {row.member.full_name}
++                  </p>
++                  <p className="truncate text-[10px] text-muted-foreground">{row.school.name}</p>
++                </div>
++                <button
++                  type="button"
++                  onClick={() => void undo(row)}
++                  title="Undo this check-in"
++                  className="rounded-lg border border-hairline/60 p-1 text-muted-foreground hover:bg-surface hover:text-foreground cursor-pointer shrink-0"
++                >
++                  <RotateCcw className="h-3 w-3" />
++                </button>
++              </div>
++            ))}
++          </div>
+         </div>
+       )}
+ 
++      {/* Main Results Table / Cards */}
+       {all.length === 0 ? (
+-        <p className="rounded-xl border border-dashed border-hairline p-8 text-center text-sm text-muted-foreground">
+-          No members have registered yet.
+-        </p>
+-      ) : q.trim() === "" ? null : shown.length === 0 ? (
+-        <p className="rounded-xl border border-dashed border-hairline p-8 text-center text-sm text-muted-foreground">
+-          No registration matches “{q.trim()}”. Check the spelling, or try the school code.
+-        </p>
++        <div className="rounded-2xl border border-dashed border-hairline/60 p-12 text-center text-sm text-muted-foreground">
++          No members registered yet.
++        </div>
++      ) : shown.length === 0 ? (
++        <div className="rounded-2xl border border-dashed border-hairline/60 p-12 text-center text-sm text-muted-foreground">
++          No registrations match your search or filter.
++        </div>
+       ) : (
+-        <>
+-          <ul className="flex flex-col gap-3">
+-            {shown.map((row) => {
+-              const { member: m, school: s } = row;
+-              const status = memberStatus(m);
+-              const cancelled = status === "cancelled";
+-              const busy = busyId === m.id;
+-              return (
+-                <li key={m.id} className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-hairline bg-surface p-5">
+-                  <div className="min-w-0">
+-                    <p className="truncate text-xl font-semibold">{m.full_name}</p>
+-                    <p className="mt-0.5 truncate text-sm text-muted-foreground">
+-                      {s.name}
+-                      {m.grade ? ` · Grade ${m.grade}` : ""} ·{" "}
+-                      <span className="font-mono">{memberRef(m)}</span>
++        <div className="flex flex-col gap-3">
++          {shown.map((row) => {
++            const { member: m, school: s } = row;
++            const status = memberStatus(m);
++            const cancelled = status === "cancelled";
++            const busy = busyId === m.id;
++            const isChecked = Boolean(m.checked_in_at);
++
++            return (
++              <div
++                key={m.id}
++                className={cn(
++                  "flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border p-4 sm:p-5 transition-all duration-200",
++                  isChecked
++                    ? "border-emerald-500/20 bg-surface/90 shadow-sm"
++                    : "border-hairline/60 bg-surface/70 hover:border-gold/30 hover:bg-surface",
++                )}
++              >
++                <div className="min-w-0">
++                  <div className="flex items-center gap-2">
++                    <p className="truncate text-base sm:text-lg font-bold text-foreground">
++                      {m.full_name}
+                     </p>
+-                    <p className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+-                      <span className={cn("rounded-full border px-2.5 py-0.5 font-medium", m.checked_in_at ? "border-gold/40 text-gold" : "border-hairline text-muted-foreground")}>
+-                        {m.checked_in_at ? `Checked in · ${fmtUtcLocal(m.checked_in_at)}` : "Not checked in"}
++                    {isChecked ? (
++                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-400">
++                        <Check className="h-3 w-3" /> Arrived
+                       </span>
+-                      {status !== "submitted" && status !== "confirmed" ? (
+-                        <span className="rounded-full border border-amber-400/40 px-2.5 py-0.5 font-medium text-amber-400">
+-                          {MEMBER_STATUS_LABEL[status] ?? status}
+-                        </span>
+-                      ) : null}
+-                    </p>
+-                  </div>
+-                  <div className="flex items-center gap-2">
+-                    {m.checked_in_at ? (
+-                      <button
+-                        type="button"
+-                        onClick={() => void undo(row)}
+-                        disabled={busy}
+-                        className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-border px-4 text-sm font-medium hover:bg-background disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+-                      >
+-                        <Undo2 className="h-4 w-4" aria-hidden /> Undo
+-                      </button>
+                     ) : (
+-                      <button
+-                        type="button"
+-                        onClick={() => void checkIn(row)}
+-                        disabled={busy || cancelled}
+-                        className="inline-flex min-h-12 min-w-40 items-center justify-center gap-2 rounded-xl bg-gold px-6 text-base font-bold text-[#0A0A0A] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white"
+-                      >
+-                        {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+-                        {cancelled ? "Cancelled" : "Check in"}
+-                      </button>
++                      <span className="inline-flex items-center gap-1 rounded-full border border-hairline bg-surface/80 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
++                        <Clock className="h-3 w-3" /> Pending
++                      </span>
+                     )}
+                   </div>
+-                </li>
+-              );
+-            })}
+-          </ul>
+-          {results.length > MAX_RESULTS ? (
+-            <p className="text-sm text-muted-foreground">
+-              Showing the first {MAX_RESULTS} of {results.length} matches. Type more to narrow it down.
++
++                  <p className="mt-1 truncate text-xs sm:text-sm text-muted-foreground">
++                    <strong className="font-semibold text-foreground">{s.name}</strong>
++                    {m.grade ? ` · Grade ${m.grade}` : ""}
++                    {m.role ? ` · ${m.role}` : ""} · Ref:{" "}
++                    <span className="font-mono text-gold font-semibold">{memberRef(m)}</span> · Code:{" "}
++                    <span className="font-mono text-xs">{m.pass_code}</span>
++                  </p>
++
++                  {m.checked_in_at && (
++                    <p className="mt-1 text-[11px] text-muted-foreground">
++                      Checked in at {fmtUtcLocal(m.checked_in_at)}
++                    </p>
++                  )}
++                </div>
++
++                <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
++                  {/* View digital pass button */}
++                  <button
++                    type="button"
++                    onClick={() => setPreviewPass(row)}
++                    title="Preview Attendee Pass"
++                    className="inline-flex items-center gap-1.5 rounded-xl border border-hairline/80 bg-background/80 px-3 py-2 text-xs font-semibold text-foreground hover:border-gold/40 hover:text-gold active:scale-95 transition cursor-pointer"
++                  >
++                    <IdCard className="h-4 w-4 text-gold" />
++                    <span>Pass</span>
++                  </button>
++
++                  {isChecked ? (
++                    <button
++                      type="button"
++                      onClick={() => void undo(row)}
++                      disabled={busy}
++                      className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-4 py-2 text-xs font-semibold text-muted-foreground hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive active:scale-95 transition cursor-pointer disabled:opacity-50"
++                    >
++                      <Undo2 className="h-3.5 w-3.5" />
++                      <span>Undo</span>
++                    </button>
++                  ) : (
++                    <button
++                      type="button"
++                      onClick={() => void checkIn(row)}
++                      disabled={busy || cancelled}
++                      className="inline-flex min-h-10 min-w-36 items-center justify-center gap-2 rounded-xl bg-gold px-5 text-sm font-bold text-black transition hover:brightness-110 active:scale-95 shadow-md shadow-gold/20 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
++                    >
++                      {busy ? (
++                        <Loader2 className="h-4 w-4 animate-spin text-black" />
++                      ) : (
++                        <UserCheck className="h-4 w-4 text-black" />
++                      )}
++                      <span>{cancelled ? "Cancelled" : "Check In"}</span>
++                    </button>
++                  )}
++                </div>
++              </div>
++            );
++          })}
++
++          {results.length > MAX_RESULTS && (
++            <p className="text-center text-xs text-muted-foreground pt-2">
++              Showing top {MAX_RESULTS} of {results.length} results. Type to narrow search.
+             </p>
+-          ) : null}
+-        </>
++          )}
++        </div>
+       )}
++
++      {/* Digital Pass Preview Dialog */}
++      <Dialog open={!!previewPass} onOpenChange={(open) => !open && setPreviewPass(null)}>
++        {previewPass && (
++          <DialogContent className="max-w-md border border-hairline/60 bg-surface/95 backdrop-blur-xl p-6 rounded-3xl shadow-2xl">
++            <DialogHeader>
++              <DialogTitle className="text-lg font-bold text-foreground flex items-center gap-2">
++                <IdCard className="h-5 w-5 text-gold" />
++                <span>Attendee Digital Pass</span>
++              </DialogTitle>
++            </DialogHeader>
++            <div className="mt-4 flex justify-center">
++              <PassCard member={previewPass.member} schoolName={previewPass.school.name} />
++            </div>
++          </DialogContent>
++        )}
++      </Dialog>
+     </div>
+   );
+ }
+diff --git a/src/components/admin/export.tsx b/src/components/admin/export.tsx
+index accf605..9d5f6a0 100644
+--- a/src/components/admin/export.tsx
++++ b/src/components/admin/export.tsx
+@@ -1,5 +1,14 @@
+ import { useState } from "react";
+-import { Download } from "lucide-react";
++import {
++  CheckCircle2,
++  Clock,
++  Download,
++  FileSpreadsheet,
++  GraduationCap,
++  ShieldAlert,
++  ShieldCheck,
++  Users,
++} from "lucide-react";
+ 
+ import type { School } from "@/lib/registration";
+ import {
+@@ -10,11 +19,13 @@ import {
+   registrationsToCsv,
+   schoolsListToCsv,
+ } from "@/lib/admin-helpers";
++import { cn } from "@/lib/utils";
+ 
+ /** CSV exports (admins only). Email and phone are left out unless ticked. */
+ export function ExportPanel({ schools }: { schools: School[] }) {
+   const [error, setError] = useState<string | null>(null);
+   const [includeContact, setIncludeContact] = useState(false);
++  const [downloadedKey, setDownloadedKey] = useState<string | null>(null);
+ 
+   const live = flattenMembers(schools).filter((r) => memberStatus(r.member) !== "cancelled");
+   const arrived = live.filter((r) => r.member.checked_in_at);
+@@ -28,6 +39,8 @@ export function ExportPanel({ schools }: { schools: School[] }) {
+     }
+     try {
+       downloadCsv(`${file}-${dateStamp()}.csv`, build());
++      setDownloadedKey(file);
++      setTimeout(() => setDownloadedKey(null), 2500);
+     } catch {
+       setError("Export failed. Please try again.");
+     }
+@@ -36,81 +49,205 @@ export function ExportPanel({ schools }: { schools: School[] }) {
+   const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+ 
+   return (
+-    <div className="flex flex-col gap-6">
++    <div className="flex flex-col gap-6 animate-in fade-in-50 duration-300">
+       <div>
+-        <h1 className="font-display text-3xl font-bold tracking-tight">Reports &amp; Export</h1>
++        <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">
++          Reports &amp; Data Export
++        </h1>
+         <p className="mt-1 text-sm text-muted-foreground">
+-          CSV files for Excel or Google Sheets. Cancelled registrations are left out of member lists.
++          Generate clean, formatted CSV reports compatible with Microsoft Excel, Apple Numbers, and
++          Google Sheets.
+         </p>
+       </div>
+ 
+-      <label className="flex items-start gap-3 rounded-2xl border border-hairline bg-surface p-4 text-sm">
++      {/* Privacy and Contact Export Toggle */}
++      <label className="flex items-start gap-3.5 rounded-2xl border border-hairline/60 bg-surface/80 p-5 text-xs sm:text-sm shadow-sm transition hover:border-gold/30 cursor-pointer">
+         <input
+           type="checkbox"
+           checked={includeContact}
+           onChange={(e) => setIncludeContact(e.target.checked)}
+-          className="mt-1 h-4 w-4"
++          className="mt-0.5 h-4 w-4 accent-[#F5B921] rounded cursor-pointer shrink-0"
+         />
+-        <span>
+-          <strong className="font-medium">Include email addresses and phone numbers</strong>
+-          <span className="block text-muted-foreground">
+-            Off by default. Only turn this on if the organizers have approved sharing contact details.
++        <div className="flex flex-col gap-0.5">
++          <span className="font-semibold text-foreground flex items-center gap-1.5">
++            {includeContact ? (
++              <ShieldAlert className="h-4 w-4 text-amber-400" />
++            ) : (
++              <ShieldCheck className="h-4 w-4 text-emerald-400" />
++            )}
++            <span>Include sensitive contact data (emails & phone numbers)</span>
++          </span>
++          <span className="text-muted-foreground leading-relaxed">
++            Off by default for participant privacy. Only include contact information for approved
++            liaison officers or reporting requirements.
+           </span>
+-        </span>
++        </div>
+       </label>
+ 
+-      <div className="grid gap-3 sm:grid-cols-2">
+-        <ExportCard title="All registrations" count={live.length} onClick={() => run(live.length, "sahasaknaada-registrations", () => registrationsToCsv(live, includeContact))} />
+-        <ExportCard title="Attendance list (checked in)" count={arrived.length} onClick={() => run(arrived.length, "sahasaknaada-attendance", () => registrationsToCsv(arrived, includeContact))} />
+-        <ExportCard title="Not yet arrived" count={waiting.length} onClick={() => run(waiting.length, "sahasaknaada-not-arrived", () => registrationsToCsv(waiting, includeContact))} />
+-        <ExportCard title="Schools list (with short codes)" count={schools.length} unit="school" onClick={() => run(schools.length, "sahasaknaada-schools", () => schoolsListToCsv(schools, includeContact))} />
++      {/* Primary Export Cards Grid */}
++      <div className="grid gap-4 sm:grid-cols-2">
++        <ExportCard
++          title="All Confirmed Registrations"
++          subtitle="Master delegate roster across all participating schools"
++          count={live.length}
++          icon={Users}
++          color="from-blue-500/20 to-indigo-500/10 text-blue-400 border-blue-500/30"
++          downloaded={downloadedKey === "sahasaknaada-registrations"}
++          onClick={() =>
++            run(live.length, "sahasaknaada-registrations", () =>
++              registrationsToCsv(live, includeContact),
++            )
++          }
++        />
++
++        <ExportCard
++          title="Attendance Roll (Checked In)"
++          subtitle="All delegates marked as present at the workshop desk"
++          count={arrived.length}
++          icon={CheckCircle2}
++          color="from-gold/25 to-amber-500/10 text-gold border-gold/40"
++          downloaded={downloadedKey === "sahasaknaada-attendance"}
++          onClick={() =>
++            run(arrived.length, "sahasaknaada-attendance", () =>
++              registrationsToCsv(arrived, includeContact),
++            )
++          }
++        />
++
++        <ExportCard
++          title="Pending Arrivals (Awaiting Check-in)"
++          subtitle="Registered delegates who have not yet arrived at the venue"
++          count={waiting.length}
++          icon={Clock}
++          color="from-amber-500/20 to-orange-500/10 text-amber-400 border-amber-500/30"
++          downloaded={downloadedKey === "sahasaknaada-not-arrived"}
++          onClick={() =>
++            run(waiting.length, "sahasaknaada-not-arrived", () =>
++              registrationsToCsv(waiting, includeContact),
++            )
++          }
++        />
++
++        <ExportCard
++          title="Schools & Teacher Directory"
++          subtitle="Participating institutions, short codes, and teacher contacts"
++          count={schools.length}
++          unit="school"
++          icon={GraduationCap}
++          color="from-purple-500/20 to-pink-500/10 text-purple-400 border-purple-500/30"
++          downloaded={downloadedKey === "sahasaknaada-schools"}
++          onClick={() =>
++            run(schools.length, "sahasaknaada-schools", () =>
++              schoolsListToCsv(schools, includeContact),
++            )
++          }
++        />
+       </div>
+ 
++      {/* Individual School Exports */}
+       {schools.length > 0 && (
+-        <>
+-          <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">Members by school</h2>
+-          <div className="grid gap-3 sm:grid-cols-2">
++        <div className="mt-4 flex flex-col gap-4">
++          <div className="flex items-center gap-2">
++            <FileSpreadsheet className="h-4 w-4 text-gold" />
++            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
++              Delegation CSV Per School ({schools.length})
++            </h2>
++          </div>
++
++          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+             {schools.map((s) => {
+               const rows = live.filter((r) => r.school.id === s.id);
++              const key = `sahasaknaada-${slug(s.name) || "school"}`;
+               return (
+                 <ExportCard
+                   key={s.id}
+                   title={s.name}
++                  subtitle={s.district}
+                   count={rows.length}
+-                  onClick={() => run(rows.length, `sahasaknaada-${slug(s.name) || "school"}`, () => registrationsToCsv(rows, includeContact))}
++                  icon={GraduationCap}
++                  downloaded={downloadedKey === key}
++                  onClick={() =>
++                    run(rows.length, key, () => registrationsToCsv(rows, includeContact))
++                  }
+                 />
+               );
+             })}
+           </div>
+-        </>
++        </div>
+       )}
+ 
+       {error && (
+-        <p role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm">
++        <div
++          role="alert"
++          className="rounded-2xl border border-destructive/40 bg-destructive/10 p-4 text-sm font-medium text-destructive-foreground animate-in shake duration-200"
++        >
+           {error}
+-        </p>
++        </div>
+       )}
+     </div>
+   );
+ }
+ 
+-function ExportCard({ title, count, unit = "member", onClick }: { title: string; count: number; unit?: string; onClick: () => void }) {
++function ExportCard({
++  title,
++  subtitle,
++  count,
++  unit = "member",
++  icon: Icon,
++  color,
++  downloaded,
++  onClick,
++}: {
++  title: string;
++  subtitle?: string;
++  count: number;
++  unit?: string;
++  icon?: typeof Users;
++  color?: string;
++  downloaded?: boolean;
++  onClick: () => void;
++}) {
+   return (
+     <button
+       type="button"
+       onClick={onClick}
+       disabled={count === 0}
+-      className="flex items-center justify-between gap-4 rounded-2xl border border-hairline bg-surface p-5 text-left transition-colors hover:border-gold/40 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
++      className={cn(
++        "group relative flex items-center justify-between gap-4 rounded-2xl border border-hairline/60 bg-surface/80 p-5 text-left transition-all duration-300 hover:-translate-y-0.5 hover:border-gold/40 hover:shadow-xl hover:shadow-black/40 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed",
++        downloaded && "border-emerald-500/50 bg-emerald-500/10",
++      )}
+     >
+-      <div className="min-w-0">
+-        <p className="truncate font-medium text-foreground">{title}</p>
+-        <p className="mt-0.5 text-xs text-muted-foreground">
+-          {count} {unit}
+-          {count === 1 ? "" : "s"}
+-        </p>
++      <div className="flex items-center gap-3.5 min-w-0">
++        {Icon && (
++          <div
++            className={cn(
++              "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border bg-gradient-to-br transition group-hover:scale-105",
++              color ?? "border-hairline/60 bg-background/80 text-gold",
++            )}
++          >
++            <Icon className="h-5 w-5" />
++          </div>
++        )}
++
++        <div className="min-w-0">
++          <p className="truncate text-sm sm:text-base font-bold text-foreground group-hover:text-gold transition-colors">
++            {title}
++          </p>
++          {subtitle && <p className="truncate text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
++          <p className="mt-1 text-xs font-semibold tabular-nums text-gold">
++            {count} {unit}
++            {count === 1 ? "" : "s"}
++          </p>
++        </div>
+       </div>
+-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-border text-gold">
+-        <Download className="h-4 w-4" aria-hidden />
++
++      <span
++        className={cn(
++          "grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-hairline/80 bg-background/80 transition group-hover:border-gold/50 group-hover:bg-gold group-hover:text-black",
++          downloaded ? "border-emerald-500 text-emerald-400 bg-emerald-500/20" : "text-gold",
++        )}
++      >
++        <Download className="h-4 w-4 transition-transform group-hover:translate-y-0.5" />
+       </span>
+     </button>
+   );
+diff --git a/src/components/admin/overview.tsx b/src/components/admin/overview.tsx
+index 14ff8ed..aa3330d 100644
+--- a/src/components/admin/overview.tsx
++++ b/src/components/admin/overview.tsx
+@@ -1,5 +1,25 @@
+ import { useCallback, useEffect, useMemo, useState } from "react";
+-import { CheckCircle2, Clock, School as SchoolIcon, Users } from "lucide-react";
++import {
++  AlertTriangle,
++  ArrowRight,
++  BarChart3,
++  Calendar,
++  Check,
++  CheckCircle2,
++  Clock,
++  Download,
++  FileSpreadsheet,
++  GraduationCap,
++  Layers,
++  QrCode,
++  Radio,
++  School as SchoolIcon,
++  Search,
++  Settings,
++  Sparkles,
++  TrendingUp,
++  Users,
++} from "lucide-react";
+ 
+ import {
+   getEventSettings,
+@@ -12,8 +32,20 @@ import {
+   type School,
+ } from "@/lib/registration";
+ import { flattenMembers, fmtUtcLocal, memberStatus } from "@/lib/admin-helpers";
++import { cn } from "@/lib/utils";
++import type { Tab } from "./primitives";
++
++export function Overview({
++  schools,
++  isAdmin,
++  onNavigateTab,
++}: {
++  schools: School[];
++  isAdmin: boolean;
++  onNavigateTab?: (tab: Tab) => void;
++}) {
++  const [schoolFilter, setSchoolFilter] = useState("");
+ 
+-export function Overview({ schools, isAdmin }: { schools: School[]; isAdmin: boolean }) {
+   const activeSchools = schools.filter((s) => s.status !== "cancelled");
+   const all = flattenMembers(activeSchools);
+   const live = all.filter((r) => memberStatus(r.member) !== "cancelled");
+@@ -23,95 +55,328 @@ export function Overview({ schools, isAdmin }: { schools: School[]; isAdmin: boo
+   const schoolsReview = schools.filter((s) => s.status === "needs_review").length;
+   const membersReview = live.filter((r) => memberStatus(r.member) === "needs_review").length;
+   const cancelledSchools = schools.length - activeSchools.length;
+-  const noMembers = activeSchools.filter((s) => s.members.filter((m) => memberStatus(m) !== "cancelled").length === 0).length;
++  const noMembers = activeSchools.filter(
++    (s) => s.members.filter((m) => memberStatus(m) !== "cancelled").length === 0,
++  ).length;
+ 
+   const rows = useMemo(
+     () =>
+       activeSchools
+         .map((s) => {
+           const members = s.members.filter((m) => memberStatus(m) !== "cancelled");
++          const here = members.filter((m) => m.checked_in_at).length;
+           return {
+             id: s.id,
+             name: s.name,
++            district: s.district,
+             total: members.length,
+-            here: members.filter((m) => m.checked_in_at).length,
++            here,
++            pct: members.length > 0 ? Math.round((here / members.length) * 100) : 0,
+           };
+         })
+         .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name)),
+     [activeSchools],
+   );
+ 
++  const filteredRows = useMemo(() => {
++    if (!schoolFilter.trim()) return rows;
++    const q = schoolFilter.toLowerCase();
++    return rows.filter((r) => r.name.toLowerCase().includes(q) || r.district.toLowerCase().includes(q));
++  }, [rows, schoolFilter]);
++
+   const metrics = [
+-    { label: "Schools registered", value: activeSchools.length, icon: SchoolIcon },
+-    { label: "Members registered", value: live.length, icon: Users },
+-    { label: "Checked in", value: checked, icon: CheckCircle2 },
+-    { label: "Not yet arrived", value: live.length - checked, icon: Clock },
++    {
++      label: "Schools registered",
++      value: activeSchools.length,
++      icon: GraduationCap,
++      color: "from-blue-500/20 to-indigo-500/10 border-blue-500/30 text-blue-400",
++      accent: "#3b82f6",
++      hint: `${cancelledSchools > 0 ? `${cancelledSchools} cancelled` : "Active institutions"}`,
++      tab: "schools" as Tab,
++    },
++    {
++      label: "Delegates registered",
++      value: live.length,
++      icon: Users,
++      color: "from-purple-500/20 to-pink-500/10 border-purple-500/30 text-purple-400",
++      accent: "#a855f7",
++      hint: `${cancelledMembers > 0 ? `${cancelledMembers} cancelled` : "Total student passes"}`,
++      tab: "registrations" as Tab,
++    },
++    {
++      label: "Checked in",
++      value: checked,
++      icon: CheckCircle2,
++      color: "from-gold/25 to-amber-500/10 border-gold/40 text-gold",
++      accent: "#F5B921",
++      hint: `${rate}% total arrival rate`,
++      tab: "checkin" as Tab,
++    },
++    {
++      label: "Not yet arrived",
++      value: live.length - checked,
++      icon: Clock,
++      color: "from-emerald-500/20 to-teal-500/10 border-emerald-500/30 text-emerald-400",
++      accent: "#10b981",
++      hint: "Expected delegates",
++      tab: "checkin" as Tab,
++    },
+   ];
+ 
+   return (
+-    <div className="flex flex-col gap-8">
+-      <div>
+-        <h1 className="font-display text-3xl font-bold tracking-tight">Overview</h1>
+-        <p className="mt-1 text-sm text-muted-foreground">
+-          Counts come from saved registrations. Cancelled schools and members are excluded.
+-          {schoolsReview > 0 && ` ${schoolsReview} school${schoolsReview === 1 ? "" : "s"} need review.`}
+-          {membersReview > 0 && ` ${membersReview} member${membersReview === 1 ? "" : "s"} need review.`}
+-          {cancelledSchools > 0 && ` ${cancelledSchools} school${cancelledSchools === 1 ? "" : "s"} cancelled.`}
+-          {cancelledMembers > 0 && ` ${cancelledMembers} member${cancelledMembers === 1 ? "" : "s"} cancelled.`}
+-        </p>
+-      </div>
++    <div className="flex flex-col gap-8 animate-in fade-in-50 duration-300">
++      {/* Hero Welcome & Quick Action Card */}
++      <div className="relative overflow-hidden rounded-3xl border border-hairline/60 bg-gradient-to-br from-surface via-surface/90 to-background p-6 sm:p-8 shadow-2xl">
++        <div className="absolute right-0 top-0 -mr-16 -mt-16 h-64 w-64 rounded-full bg-gold/5 blur-3xl pointer-events-none" />
++
++        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
++          <div className="max-w-2xl">
++            <div className="flex items-center gap-2 text-gold">
++              <Radio className="h-4 w-4 animate-pulse" />
++              <span className="text-xs font-semibold uppercase tracking-[0.25em]">
++                Live Command Center
++              </span>
++            </div>
++            <h1 className="mt-2 font-display text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
++              Workshop Overview
++            </h1>
++            <p className="mt-2 text-sm sm:text-base text-muted-foreground leading-relaxed">
++              Real-time monitoring for Sahasak Naada &apos;26 by Radio Electronics Association of D.
++              S. Senanayake College.
++            </p>
+ 
+-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+-        {metrics.map((m) => (
+-          <div key={m.label} className="rounded-2xl border border-hairline bg-surface p-5">
+-            <m.icon className="h-5 w-5 text-gold" aria-hidden />
+-            <p className="mt-4 font-display text-3xl font-bold tabular-nums">{m.value}</p>
+-            <p className="mt-1 text-sm text-muted-foreground">{m.label}</p>
++            {(schoolsReview > 0 || membersReview > 0) && (
++              <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-400">
++                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
++                <span>
++                  {schoolsReview > 0 && `${schoolsReview} school(s) need review. `}
++                  {membersReview > 0 && `${membersReview} member(s) need review.`}
++                </span>
++              </div>
++            )}
+           </div>
+-        ))}
++
++          {/* Quick Action Buttons */}
++          <div className="flex flex-wrap items-center gap-2.5">
++            <button
++              type="button"
++              onClick={() => onNavigateTab?.("checkin")}
++              className="inline-flex items-center gap-2 rounded-xl bg-gold px-4 py-2.5 text-xs sm:text-sm font-bold text-black transition hover:brightness-110 active:scale-95 shadow-lg shadow-gold/20 cursor-pointer"
++            >
++              <QrCode className="h-4 w-4" />
++              <span>Check-in Desk</span>
++              <ArrowRight className="h-3.5 w-3.5" />
++            </button>
++
++            <button
++              type="button"
++              onClick={() => onNavigateTab?.("schools")}
++              className="inline-flex items-center gap-2 rounded-xl border border-hairline/60 bg-surface/80 px-4 py-2.5 text-xs sm:text-sm font-medium text-foreground transition hover:border-gold/40 hover:bg-surface active:scale-95 cursor-pointer"
++            >
++              <GraduationCap className="h-4 w-4 text-gold" />
++              <span>Schools</span>
++            </button>
++
++            <button
++              type="button"
++              onClick={() => onNavigateTab?.("registrations")}
++              className="inline-flex items-center gap-2 rounded-xl border border-hairline/60 bg-surface/80 px-4 py-2.5 text-xs sm:text-sm font-medium text-foreground transition hover:border-gold/40 hover:bg-surface active:scale-95 cursor-pointer"
++            >
++              <Users className="h-4 w-4 text-purple-400" />
++              <span>Registrations</span>
++            </button>
++
++            {isAdmin && (
++              <button
++                type="button"
++                onClick={() => onNavigateTab?.("export")}
++                className="inline-flex items-center gap-2 rounded-xl border border-hairline/60 bg-surface/80 px-4 py-2.5 text-xs sm:text-sm font-medium text-foreground transition hover:border-gold/40 hover:bg-surface active:scale-95 cursor-pointer"
++              >
++                <Download className="h-4 w-4 text-emerald-400" />
++                <span>Reports</span>
++              </button>
++            )}
++          </div>
++        </div>
+       </div>
+ 
+-      <div className="grid gap-6 md:grid-cols-2">
+-        <div className="rounded-2xl border border-hairline bg-surface p-6">
+-          <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">Attendance rate</h2>
+-          <p className="mt-3 font-display text-5xl font-bold text-gold">{rate}%</p>
+-          <div
+-            className="mt-4 h-2 w-full overflow-hidden rounded-full bg-hairline"
+-            role="progressbar"
+-            aria-valuenow={rate}
+-            aria-valuemin={0}
+-            aria-valuemax={100}
+-            aria-label="Attendance rate"
+-          >
+-            <div className="h-full rounded-full bg-gold transition-all" style={{ width: `${rate}%` }} />
++      {/* 4 Interactive Stat Cards */}
++      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
++        {metrics.map((m) => {
++          const Icon = m.icon;
++          return (
++            <div
++              key={m.label}
++              onClick={() => onNavigateTab?.(m.tab)}
++              className="group relative overflow-hidden rounded-2xl border border-hairline/60 bg-surface/80 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-gold/40 hover:shadow-xl hover:shadow-black/50 cursor-pointer"
++            >
++              <div className="flex items-center justify-between">
++                <div
++                  className={cn(
++                    "flex h-11 w-11 items-center justify-center rounded-xl border bg-gradient-to-br transition-transform duration-300 group-hover:scale-110",
++                    m.color,
++                  )}
++                >
++                  <Icon className="h-5 w-5" />
++                </div>
++                <ArrowRight className="h-4 w-4 text-muted-foreground/40 opacity-0 transition group-hover:opacity-100 group-hover:text-gold" />
++              </div>
++
++              <div className="mt-4">
++                <p className="font-display text-4xl font-bold tracking-tight text-foreground tabular-nums">
++                  {m.value}
++                </p>
++                <p className="mt-1 text-xs sm:text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
++                  {m.label}
++                </p>
++                <p className="mt-2 text-[11px] font-semibold text-gold/80 flex items-center gap-1">
++                  <Sparkles className="h-3 w-3" />
++                  <span>{m.hint}</span>
++                </p>
++              </div>
++            </div>
++          );
++        })}
++      </div>
++
++      {/* Attendance Visualizer & School Leaderboard */}
++      <div className="grid gap-6 md:grid-cols-5">
++        {/* Attendance Visualizer (2 cols) */}
++        <div className="md:col-span-2 flex flex-col justify-between rounded-3xl border border-hairline/60 bg-surface/80 p-6 sm:p-7 shadow-xl">
++          <div>
++            <div className="flex items-center justify-between">
++              <span className="text-xs font-semibold uppercase tracking-wider text-gold">
++                Venue Check-in Progress
++              </span>
++              <TrendingUp className="h-4 w-4 text-gold" />
++            </div>
++            <div className="mt-4 flex items-baseline gap-3">
++              <span className="font-display text-6xl font-extrabold text-gold tracking-tight">
++                {rate}%
++              </span>
++              <span className="text-xs font-medium text-muted-foreground">arrived</span>
++            </div>
++
++            {/* Sound-wave style progress bar */}
++            <div className="mt-6 flex flex-col gap-2">
++              <div
++                className="h-3 w-full overflow-hidden rounded-full bg-hairline/60 p-0.5"
++                role="progressbar"
++                aria-valuenow={rate}
++                aria-valuemin={0}
++                aria-valuemax={100}
++              >
++                <div
++                  className="h-full rounded-full bg-gradient-to-r from-amber-500 via-gold to-yellow-300 transition-all duration-700 shadow-[0_0_12px_rgba(245,185,33,0.5)]"
++                  style={{ width: `${rate}%` }}
++                />
++              </div>
++
++              <div className="flex justify-between text-xs text-muted-foreground pt-1">
++                <span>0%</span>
++                <span className="text-gold font-semibold">
++                  {checked} of {live.length} checked in
++                </span>
++                <span>100%</span>
++              </div>
++            </div>
++
++            {/* Attendance breakdown stats */}
++            <div className="mt-6 grid grid-cols-2 gap-3 pt-4 border-t border-hairline/40">
++              <div className="rounded-xl border border-hairline/40 bg-background/50 p-3">
++                <span className="text-[11px] text-muted-foreground">Present in Hall</span>
++                <p className="mt-1 text-lg font-bold text-foreground tabular-nums">{checked}</p>
++              </div>
++              <div className="rounded-xl border border-hairline/40 bg-background/50 p-3">
++                <span className="text-[11px] text-muted-foreground">En Route / Pending</span>
++                <p className="mt-1 text-lg font-bold text-amber-400 tabular-nums">
++                  {live.length - checked}
++                </p>
++              </div>
++            </div>
+           </div>
+-          <p className="mt-2 text-xs text-muted-foreground">
+-            {checked} of {live.length} checked in
+-          </p>
++
++          <button
++            type="button"
++            onClick={() => onNavigateTab?.("checkin")}
++            className="mt-6 flex items-center justify-center gap-2 rounded-xl border border-gold/40 bg-gold/10 py-3 text-xs font-semibold text-gold transition hover:bg-gold/20 active:scale-95 cursor-pointer"
++          >
++            <QrCode className="h-4 w-4" />
++            <span>Launch Check-in Scanner</span>
++          </button>
+         </div>
+ 
+-        <div className="rounded-2xl border border-hairline bg-surface p-6">
+-          <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">Members by school</h2>
+-          {rows.length === 0 ? (
+-            <p className="mt-6 text-sm text-muted-foreground">No schools have registered yet.</p>
++        {/* Members By School Progress Leaderboard (3 cols) */}
++        <div className="md:col-span-3 rounded-3xl border border-hairline/60 bg-surface/80 p-6 sm:p-7 shadow-xl flex flex-col">
++          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
++            <div>
++              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
++                School Delegations ({rows.length})
++              </h2>
++              <p className="mt-0.5 text-xs text-muted-foreground">
++                Live arrival tracker per participating institution
++              </p>
++            </div>
++
++            {/* Mini Search inside leaderboard */}
++            <div className="relative w-full sm:w-48">
++              <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
++              <input
++                type="text"
++                placeholder="Filter schools…"
++                value={schoolFilter}
++                onChange={(e) => setSchoolFilter(e.target.value)}
++                className="w-full rounded-lg border border-border bg-background py-1.5 pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-gold"
++              />
++            </div>
++          </div>
++
++          {filteredRows.length === 0 ? (
++            <div className="my-auto py-12 text-center text-sm text-muted-foreground">
++              {schoolFilter ? `No schools matching “${schoolFilter}”` : "No schools registered yet."}
++            </div>
+           ) : (
+-            <>
+-              {noMembers > 0 && (
+-                <p className="mt-2 text-xs text-muted-foreground">
+-                  {noMembers} school{noMembers === 1 ? " has" : "s have"} no members yet.
+-                </p>
+-              )}
+-              <ul className="mt-4 flex max-h-72 flex-col gap-3 overflow-y-auto pr-1">
+-                {rows.map((r) => (
+-                  <li key={r.id} className="flex items-center justify-between gap-4 text-sm">
+-                    <span className="truncate text-foreground">{r.name}</span>
+-                    <span className="shrink-0 rounded-full border border-hairline px-2.5 py-0.5 text-xs font-medium tabular-nums text-muted-foreground">
+-                      {r.here}/{r.total} in
+-                    </span>
++            <ul className="mt-4 flex max-h-80 flex-col gap-2.5 overflow-y-auto pr-1">
++              {filteredRows.map((r) => {
++                const complete = r.total > 0 && r.here === r.total;
++                return (
++                  <li
++                    key={r.id}
++                    className="flex flex-col gap-1.5 rounded-xl border border-hairline/50 bg-background/40 p-3 transition hover:border-gold/30 hover:bg-background/80"
++                  >
++                    <div className="flex items-center justify-between gap-3">
++                      <div className="min-w-0">
++                        <p className="truncate text-sm font-semibold text-foreground">{r.name}</p>
++                        <p className="text-[11px] text-muted-foreground">{r.district}</p>
++                      </div>
++                      <div className="flex items-center gap-2 shrink-0">
++                        {complete && (
++                          <span className="hidden sm:inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">
++                            <Check className="h-2.5 w-2.5" /> All in
++                          </span>
++                        )}
++                        <span className="rounded-full border border-hairline/80 bg-surface px-2.5 py-0.5 text-xs font-semibold tabular-nums text-foreground">
++                          {r.here}/{r.total}
++                        </span>
++                      </div>
++                    </div>
++
++                    {/* Progress line */}
++                    {r.total > 0 && (
++                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-hairline/60">
++                        <div
++                          className={cn(
++                            "h-full rounded-full transition-all duration-500",
++                            complete ? "bg-emerald-400" : "bg-gold",
++                          )}
++                          style={{ width: `${r.pct}%` }}
++                        />
++                      </div>
++                    )}
+                   </li>
+-                ))}
+-              </ul>
+-            </>
++                );
++              })}
++            </ul>
+           )}
+         </div>
+       </div>
+@@ -151,23 +416,32 @@ function ReviewQueue({ isAdmin }: { isAdmin: boolean }) {
+   if (!items || items.length === 0) return null;
+ 
+   return (
+-    <div className="rounded-2xl border border-amber-400/40 bg-surface p-6">
+-      <h2 className="text-sm font-medium uppercase tracking-wide text-amber-400">
+-        Possible duplicate schools ({items.length})
+-      </h2>
++    <div className="rounded-3xl border border-amber-400/40 bg-surface/80 p-6 sm:p-7 shadow-xl">
++      <div className="flex items-center gap-2 text-amber-400">
++        <AlertTriangle className="h-5 w-5" />
++        <h2 className="text-sm font-semibold uppercase tracking-wider">
++          Duplicate School Applications Queue ({items.length})
++        </h2>
++      </div>
+       <p className="mt-1 text-sm text-muted-foreground">
+-        These sign-ups matched an existing school's name or email, so no code was issued. Contact them if
+-        they're a genuinely different school.
++        These sign-ups matched an existing school&apos;s name or email. Review and mark handled.
+       </p>
+       <ul className="mt-4 flex flex-col gap-3">
+         {items.map((it) => (
+-          <li key={it.id} className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-hairline p-4 text-sm">
++          <li
++            key={it.id}
++            className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-hairline/60 bg-background/60 p-4 text-sm"
++          >
+             <div className="min-w-0">
+-              <p className="font-medium text-foreground">{it.payload.name ?? "Unnamed school"}</p>
+-              <p className="text-muted-foreground">
+-                {[it.payload.contact_email, it.payload.contact_phone, it.payload.mic_name].filter(Boolean).join(" · ")}
++              <p className="font-semibold text-foreground">{it.payload.name ?? "Unnamed school"}</p>
++              <p className="text-xs text-muted-foreground mt-0.5">
++                {[it.payload.contact_email, it.payload.contact_phone, it.payload.mic_name]
++                  .filter(Boolean)
++                  .join(" · ")}
++              </p>
++              <p className="mt-1 text-[11px] text-muted-foreground font-mono">
++                {fmtUtcLocal(it.created_at)}
+               </p>
+-              <p className="mt-1 text-xs text-muted-foreground">{fmtUtcLocal(it.created_at)}</p>
+             </div>
+             {isAdmin && (
+               <button
+@@ -175,11 +449,14 @@ function ReviewQueue({ isAdmin }: { isAdmin: boolean }) {
+                 onClick={() => {
+                   void resolveReviewItem(it.id)
+                     .then(load)
+-                    .catch((e: unknown) => setError(e instanceof Error ? e.message : "Couldn't update."));
++                    .catch((e: unknown) =>
++                      setError(e instanceof Error ? e.message : "Couldn't update."),
++                    );
+                 }}
+-                className="rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
++                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-foreground hover:border-gold/40 hover:text-gold active:scale-95 transition cursor-pointer"
+               >
+-                Mark handled
++                <Check className="h-3.5 w-3.5" />
++                <span>Mark handled</span>
+               </button>
+             )}
+           </li>
+@@ -191,14 +468,12 @@ function ReviewQueue({ isAdmin }: { isAdmin: boolean }) {
+ 
+ /* ------------------------ Registration settings --------------------------- */
+ 
+-/** ISO (UTC) -> value for <input type="datetime-local"> in Sri Lanka time. */
+ function toColomboInput(iso: string | null | undefined): string {
+   if (!iso) return "";
+   const d = new Date(new Date(iso).getTime() + 5.5 * 3600 * 1000);
+   return d.toISOString().slice(0, 16);
+ }
+ 
+-/** datetime-local value (Sri Lanka time) -> ISO, or null when empty. */
+ function fromColomboInput(v: string): string | null {
+   if (!v) return null;
+   const d = new Date(`${v}:00+05:30`);
+@@ -222,7 +497,7 @@ function SettingsCard() {
+     try {
+       await saveEventSettings(next);
+       setS(next);
+-      setMsg("Saved.");
++      setMsg("Settings updated successfully.");
+     } catch (e) {
+       setMsg(e instanceof Error ? e.message : "Couldn't save.");
+     } finally {
+@@ -230,60 +505,110 @@ function SettingsCard() {
+     }
+   }
+ 
+-  const checkbox = "h-4 w-4 accent-[var(--gold,#e7b54a)]";
+-  const field = "rounded-lg border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring";
++  const checkbox = "h-4 w-4 accent-[#F5B921] rounded cursor-pointer";
++  const field =
++    "rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-gold transition";
+ 
+   return (
+-    <div className="rounded-2xl border border-hairline bg-surface p-6">
+-      <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">Registration settings</h2>
+-
+-      <div className="mt-4 grid gap-5 sm:grid-cols-2">
+-        <label className="flex items-center gap-3 text-sm">
+-          <input type="checkbox" className={checkbox} checked={s.registration_open} disabled={busy}
+-            onChange={(e) => void save({ ...s, registration_open: e.target.checked })} />
+-          Registration is open (master switch)
++    <div className="rounded-3xl border border-hairline/60 bg-surface/80 p-6 sm:p-7 shadow-xl">
++      <div className="flex items-center gap-2 text-gold">
++        <Settings className="h-5 w-5" />
++        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
++          Event & Registration Controls
++        </h2>
++      </div>
++
++      <div className="mt-6 grid gap-5 sm:grid-cols-2">
++        <label className="flex items-center gap-3 text-sm font-medium text-foreground p-3 rounded-xl border border-hairline/40 bg-background/40">
++          <input
++            type="checkbox"
++            className={checkbox}
++            checked={s.registration_open}
++            disabled={busy}
++            onChange={(e) => void save({ ...s, registration_open: e.target.checked })}
++          />
++          Master Registration Switch (Open)
+         </label>
+ 
+-        <label className="flex items-center gap-3 text-sm">
+-          Phase
++        <label className="flex items-center gap-3 text-sm font-medium text-foreground p-3 rounded-xl border border-hairline/40 bg-background/40">
++          Registration Phase:
+           <select
+             value={s.registration_phase ?? "schools_first"}
+             disabled={busy}
+-            onChange={(e) => void save({ ...s, registration_phase: e.target.value as RegistrationPhase })}
++            onChange={(e) =>
++              void save({ ...s, registration_phase: e.target.value as RegistrationPhase })
++            }
+             className={field}
+           >
+-            <option value="schools_first">Schools first</option>
+-            <option value="open">Open</option>
++            <option value="schools_first">Schools First (Two-step)</option>
++            <option value="open">Open (Direct)</option>
+           </select>
+         </label>
+ 
+-        <label className="flex items-center gap-3 text-sm">
+-          <input type="checkbox" className={checkbox} checked={s.school_form_open !== false} disabled={busy}
+-            onChange={(e) => void save({ ...s, school_form_open: e.target.checked })} />
+-          School form is open
++        <label className="flex items-center gap-3 text-sm font-medium text-foreground p-3 rounded-xl border border-hairline/40 bg-background/40">
++          <input
++            type="checkbox"
++            className={checkbox}
++            checked={s.school_form_open !== false}
++            disabled={busy}
++            onChange={(e) => void save({ ...s, school_form_open: e.target.checked })}
++          />
++          School Registration Form Active
+         </label>
+-        <label className="flex items-center gap-3 text-sm">
+-          <input type="checkbox" className={checkbox} checked={s.member_form_open !== false} disabled={busy}
+-            onChange={(e) => void save({ ...s, member_form_open: e.target.checked })} />
+-          Member form is open
++
++        <label className="flex items-center gap-3 text-sm font-medium text-foreground p-3 rounded-xl border border-hairline/40 bg-background/40">
++          <input
++            type="checkbox"
++            className={checkbox}
++            checked={s.member_form_open !== false}
++            disabled={busy}
++            onChange={(e) => void save({ ...s, member_form_open: e.target.checked })}
++          />
++          Member Registration Form Active
+         </label>
+ 
+-        <DateField label="School form opens" value={s.school_opens_at} disabled={busy} className={field}
+-          onCommit={(v) => void save({ ...s, school_opens_at: v })} />
+-        <DateField label="School form closes" value={s.school_closes_at} disabled={busy} className={field}
+-          onCommit={(v) => void save({ ...s, school_closes_at: v })} />
+-        <DateField label="Member form opens" value={s.member_opens_at} disabled={busy} className={field}
+-          onCommit={(v) => void save({ ...s, member_opens_at: v })} />
+-        <DateField label="Member form closes" value={s.member_closes_at} disabled={busy} className={field}
+-          onCommit={(v) => void save({ ...s, member_closes_at: v })} />
+-
+-        <label className="flex items-center gap-3 text-sm">
+-          <input type="checkbox" className={checkbox} checked={s.member_cap_enabled === true} disabled={busy}
+-            onChange={(e) => void save({ ...s, member_cap_enabled: e.target.checked })} />
+-          Limit members per school
++        <DateField
++          label="School Registration Opens"
++          value={s.school_opens_at}
++          disabled={busy}
++          className={field}
++          onCommit={(v) => void save({ ...s, school_opens_at: v })}
++        />
++        <DateField
++          label="School Registration Closes"
++          value={s.school_closes_at}
++          disabled={busy}
++          className={field}
++          onCommit={(v) => void save({ ...s, school_closes_at: v })}
++        />
++        <DateField
++          label="Member Registration Opens"
++          value={s.member_opens_at}
++          disabled={busy}
++          className={field}
++          onCommit={(v) => void save({ ...s, member_opens_at: v })}
++        />
++        <DateField
++          label="Member Registration Closes"
++          value={s.member_closes_at}
++          disabled={busy}
++          className={field}
++          onCommit={(v) => void save({ ...s, member_closes_at: v })}
++        />
++
++        <label className="flex items-center gap-3 text-sm font-medium text-foreground p-3 rounded-xl border border-hairline/40 bg-background/40">
++          <input
++            type="checkbox"
++            className={checkbox}
++            checked={s.member_cap_enabled === true}
++            disabled={busy}
++            onChange={(e) => void save({ ...s, member_cap_enabled: e.target.checked })}
++          />
++          Limit Delegates Per School
+         </label>
+-        <label className="flex items-center gap-3 text-sm">
+-          Max members per school
++
++        <label className="flex items-center gap-3 text-sm font-medium text-foreground p-3 rounded-xl border border-hairline/40 bg-background/40">
++          Max Delegates Per School:
+           <input
+             type="number"
+             min={1}
+@@ -291,22 +616,21 @@ function SettingsCard() {
+             defaultValue={s.max_members_per_school}
+             disabled={busy || s.member_cap_enabled !== true}
+             onBlur={(e) => {
+-              const v = Math.min(100, Math.max(1, Number(e.target.value) || s.max_members_per_school));
++              const v = Math.min(
++                100,
++                Math.max(1, Number(e.target.value) || s.max_members_per_school),
++              );
+               if (v !== s.max_members_per_school) void save({ ...s, max_members_per_school: v });
+             }}
+-            className={`w-20 ${field}`}
++            className={`w-24 ${field}`}
+           />
+         </label>
+       </div>
+ 
+-      <p className="mt-4 text-xs text-muted-foreground">
+-        Times are Sri Lanka time. Leave a date empty for no limit. The member form always needs a valid school code.
+-      </p>
+-      {msg && (
+-        <p role="status" className="mt-2 text-xs text-muted-foreground">
+-          {msg}
+-        </p>
+-      )}
++      <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
++        <span>Times configured in Sri Lanka Standard Time (GMT+5:30).</span>
++        {msg && <span className="font-semibold text-gold animate-in fade-in">{msg}</span>}
++      </div>
+     </div>
+   );
+ }
+@@ -325,8 +649,10 @@ function DateField({
+   onCommit: (iso: string | null) => void;
+ }) {
+   return (
+-    <label className="flex flex-col gap-1 text-sm">
+-      <span className="text-muted-foreground">{label}</span>
++    <label className="flex flex-col gap-1.5 text-sm p-3 rounded-xl border border-hairline/40 bg-background/40">
++      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
++        {label}
++      </span>
+       <input
+         type="datetime-local"
+         defaultValue={toColomboInput(value)}
+diff --git a/src/components/admin/primitives.tsx b/src/components/admin/primitives.tsx
+index 5bdb23f..c7f3c7b 100644
+--- a/src/components/admin/primitives.tsx
++++ b/src/components/admin/primitives.tsx
+@@ -1,3 +1,23 @@
++import { useEffect, useState } from "react";
++import { Link } from "@tanstack/react-router";
++import {
++  AlertTriangle,
++  CheckCircle2,
++  Clock,
++  Crown,
++  ExternalLink,
++  FileSpreadsheet,
++  Globe,
++  GraduationCap,
++  LayoutDashboard,
++  LogOut,
++  QrCode,
++  RefreshCw,
++  ShieldCheck,
++  Users,
++  XCircle,
++} from "lucide-react";
++
+ import { Logo } from "@/components/logo";
+ import { cn } from "@/lib/utils";
+ import type { School, SchoolPasses, SchoolStatus, StaffProfile } from "@/lib/registration";
+@@ -6,27 +26,127 @@ export { fmtUtcLocal } from "@/lib/admin-helpers";
+ 
+ export type Tab = "overview" | "schools" | "registrations" | "checkin" | "export";
+ 
++export type TabCounts = {
++  checkin?: { arrived: number; total: number };
++  schools?: number;
++  registrations?: number;
++};
++
+ /* ---------------- Top bar + tabs ---------------- */
+ 
+-export function AdminTopBar({ staff, onSignOut }: { staff: StaffProfile; onSignOut: () => void }) {
++export function AdminTopBar({
++  staff,
++  onSignOut,
++  onRefresh,
++  isRefreshing = false,
++}: {
++  staff: StaffProfile;
++  onSignOut: () => void;
++  onRefresh?: () => void;
++  isRefreshing?: boolean;
++}) {
++  const [timeStr, setTimeStr] = useState<string>("");
++
++  useEffect(() => {
++    const update = () => {
++      const now = new Date();
++      setTimeStr(
++        now.toLocaleTimeString("en-US", {
++          hour: "2-digit",
++          minute: "2-digit",
++          second: "2-digit",
++          hour12: true,
++        }),
++      );
++    };
++    update();
++    const interval = setInterval(update, 1000);
++    return () => clearInterval(interval);
++  }, []);
++
+   return (
+-    <div className="sticky top-0 z-40 border-b border-hairline bg-background/85 backdrop-blur-xl">
+-      <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-5 sm:px-8">
+-        <Logo />
+-        <div className="flex items-center gap-4">
+-          <span className="hidden text-sm text-muted-foreground sm:inline">
+-            <strong className="font-medium text-foreground">{staff.display_name}</strong> ·{" "}
+-            {staff.role === "admin" ? "Admin" : "Check-in desk"}
+-          </span>
++    <header className="sticky top-0 z-40 border-b border-hairline bg-background/80 backdrop-blur-2xl transition-all duration-200">
++      <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-8">
++        <div className="flex items-center gap-4 sm:gap-6">
++          <Logo />
++          {/* Live Sync Beacon */}
++          <div className="hidden md:flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400">
++            <span className="relative flex h-2 w-2">
++              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
++              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
++            </span>
++            <span>Live Sync</span>
++          </div>
++
++          {/* Real-time Clock */}
++          {timeStr && (
++            <div className="hidden lg:flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
++              <Clock className="h-3.5 w-3.5 text-gold/70" />
++              <span>{timeStr}</span>
++            </div>
++          )}
++        </div>
++
++        <div className="flex items-center gap-2 sm:gap-3">
++          {/* Manual Refresh Button */}
++          {onRefresh && (
++            <button
++              type="button"
++              onClick={onRefresh}
++              disabled={isRefreshing}
++              title="Refresh dashboard data"
++              className="inline-flex items-center justify-center rounded-lg border border-hairline/60 bg-surface/80 p-2 text-muted-foreground transition hover:border-gold/40 hover:bg-surface hover:text-gold active:scale-95 disabled:opacity-50 cursor-pointer"
++            >
++              <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin text-gold")} />
++              <span className="sr-only">Refresh data</span>
++            </button>
++          )}
++
++          {/* Public site link */}
++          <Link
++            to="/"
++            title="Go to public website"
++            className="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-hairline/60 bg-surface/80 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-gold/40 hover:bg-surface hover:text-foreground"
++          >
++            <Globe className="h-3.5 w-3.5 text-gold/80" />
++            <span>Public site</span>
++            <ExternalLink className="h-3 w-3 opacity-60" />
++          </Link>
++
++          {/* User profile & role badge */}
++          <div className="flex items-center gap-2 rounded-lg border border-hairline/60 bg-surface/60 px-3 py-1.5">
++            <div className="flex flex-col text-right sm:text-left">
++              <span className="text-xs font-semibold text-foreground truncate max-w-[120px] sm:max-w-[160px]">
++                {staff.display_name}
++              </span>
++              <span className="flex items-center gap-1 text-[10px] font-medium tracking-wide uppercase text-gold">
++                {staff.role === "admin" ? (
++                  <>
++                    <Crown className="h-2.5 w-2.5" />
++                    <span>Admin</span>
++                  </>
++                ) : (
++                  <>
++                    <ShieldCheck className="h-2.5 w-2.5" />
++                    <span>Desk</span>
++                  </>
++                )}
++              </span>
++            </div>
++          </div>
++
++          {/* Sign Out Button */}
+           <button
+             onClick={onSignOut}
+-            className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
++            title="Sign out of dashboard"
++            className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-1.5 text-xs font-medium text-destructive-foreground transition hover:border-destructive/40 hover:bg-destructive/20 active:scale-95 cursor-pointer"
+           >
+-            <span aria-hidden>↗</span> Sign out
++            <LogOut className="h-3.5 w-3.5" />
++            <span className="hidden sm:inline">Sign out</span>
+           </button>
+         </div>
+       </div>
+-    </div>
++    </header>
+   );
+ }
+ 
+@@ -34,40 +154,100 @@ export function Tabs({
+   tab,
+   setTab,
+   isAdmin = false,
++  counts,
+ }: {
+   tab: Tab;
+   setTab: (t: Tab) => void;
+   isAdmin?: boolean;
++  counts?: TabCounts;
+ }) {
+-  const items: { id: Tab; label: string }[] = [
+-    { id: "checkin", label: "Check-in" },
+-    { id: "overview", label: "Overview" },
+-    { id: "schools", label: "Schools" },
+-    { id: "registrations", label: "Registrations" },
+-    ...(isAdmin ? [{ id: "export" as Tab, label: "Reports & Export" }] : []),
++  const items: {
++    id: Tab;
++    label: string;
++    icon: typeof QrCode;
++    badge?: string | number;
++  }[] = [
++    {
++      id: "checkin",
++      label: "Check-in Desk",
++      icon: QrCode,
++      badge:
++        counts?.checkin && counts.checkin.total > 0
++          ? `${counts.checkin.arrived}/${counts.checkin.total}`
++          : undefined,
++    },
++    {
++      id: "overview",
++      label: "Overview",
++      icon: LayoutDashboard,
++    },
++    {
++      id: "schools",
++      label: "Schools",
++      icon: GraduationCap,
++      badge: counts?.schools !== undefined ? counts.schools : undefined,
++    },
++    {
++      id: "registrations",
++      label: "Registrations",
++      icon: Users,
++      badge: counts?.registrations !== undefined ? counts.registrations : undefined,
++    },
++    ...(isAdmin
++      ? [
++          {
++            id: "export" as Tab,
++            label: "Reports & Export",
++            icon: FileSpreadsheet,
++          },
++        ]
++      : []),
+   ];
++
+   return (
+     <div
+       role="tablist"
+       aria-label="Dashboard sections"
+-      className="flex flex-wrap gap-1 border-b border-hairline"
++      className="flex flex-wrap items-center gap-2 border-b border-hairline/60 pb-3"
+     >
+-      {items.map((it) => (
+-        <button
+-          key={it.id}
+-          role="tab"
+-          aria-selected={tab === it.id}
+-          onClick={() => setTab(it.id)}
+-          className={cn(
+-            "rounded-t-md px-4 py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+-            tab === it.id
+-              ? "border-b-2 border-gold text-foreground"
+-              : "text-muted-foreground hover:text-foreground",
+-          )}
+-        >
+-          {it.label}
+-        </button>
+-      ))}
++      {items.map((it) => {
++        const Icon = it.icon;
++        const active = tab === it.id;
++        return (
++          <button
++            key={it.id}
++            role="tab"
++            aria-selected={active}
++            onClick={() => setTab(it.id)}
++            className={cn(
++              "group relative flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold cursor-pointer",
++              active
++                ? "bg-gold/15 text-gold border border-gold/40 shadow-[0_0_20px_rgba(245,185,33,0.18)]"
++                : "border border-hairline/40 bg-surface/40 text-muted-foreground hover:border-hairline hover:bg-surface hover:text-foreground",
++            )}
++          >
++            <Icon
++              className={cn(
++                "h-4 w-4 transition-transform duration-200 group-hover:scale-110",
++                active ? "text-gold" : "text-muted-foreground group-hover:text-foreground",
++              )}
++            />
++            <span>{it.label}</span>
++            {it.badge !== undefined && (
++              <span
++                className={cn(
++                  "rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums transition",
++                  active
++                    ? "bg-gold/25 text-gold"
++                    : "bg-surface border border-hairline text-muted-foreground group-hover:text-foreground",
++                )}
++              >
++                {it.badge}
++              </span>
++            )}
++          </button>
++        );
++      })}
+     </div>
+   );
+ }
+@@ -81,27 +261,48 @@ export const STATUS_LABEL: Record<SchoolStatus, string> = {
+ };
+ 
+ export function StatusBadge({ status }: { status: SchoolStatus }) {
+-  const map: Record<SchoolStatus, string> = {
+-    confirmed: "text-gold",
+-    needs_review: "text-amber-400",
+-    cancelled: "text-muted-foreground line-through",
+-  };
+-  return <span className={cn("text-xs font-medium", map[status])}>{STATUS_LABEL[status]}</span>;
++  if (status === "confirmed") {
++    return (
++      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-400">
++        <CheckCircle2 className="h-3 w-3" />
++        <span>Confirmed</span>
++      </span>
++    );
++  }
++  if (status === "needs_review") {
++    return (
++      <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-400">
++        <AlertTriangle className="h-3 w-3" />
++        <span>Needs review</span>
++      </span>
++    );
++  }
++  return (
++    <span className="inline-flex items-center gap-1.5 rounded-full border border-zinc-500/20 bg-zinc-500/10 px-2.5 py-0.5 text-xs font-medium text-zinc-400 line-through">
++      <XCircle className="h-3 w-3" />
++      <span>Cancelled</span>
++    </span>
++  );
+ }
+ 
+ export function CheckBadge({ checkedIn }: { checkedIn: boolean }) {
+   return (
+     <span
+       className={cn(
+-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium",
+-        checkedIn ? "border-gold/40 text-gold" : "border-hairline text-muted-foreground",
++        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-all duration-200",
++        checkedIn
++          ? "border-gold/50 bg-gold/15 text-gold shadow-[0_0_12px_rgba(245,185,33,0.18)]"
++          : "border-hairline bg-surface/50 text-muted-foreground",
+       )}
+     >
+       <span
+         aria-hidden
+-        className={cn("h-1.5 w-1.5 rounded-full", checkedIn ? "bg-gold" : "bg-muted-foreground/50")}
++        className={cn(
++          "h-1.5 w-1.5 rounded-full transition-transform",
++          checkedIn ? "bg-gold shadow-[0_0_8px_#F5B921]" : "bg-muted-foreground/40",
++        )}
+       />
+-      {checkedIn ? "Checked in" : "Not checked in"}
++      {checkedIn ? "Checked in" : "Not arrived"}
+     </span>
+   );
+ }
+@@ -123,10 +324,10 @@ export function Select({
+       <select
+         value={value}
+         onChange={(e) => onChange(e.target.value)}
+-        className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
++        className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-gold transition cursor-pointer"
+       >
+         {options.map((o) => (
+-          <option key={o.value} value={o.value}>
++          <option key={o.value} value={o.value} className="bg-background text-foreground">
+             {o.label}
+           </option>
+         ))}
+diff --git a/src/components/admin/registrations.tsx b/src/components/admin/registrations.tsx
+index c3e74dd..60a34b6 100644
+--- a/src/components/admin/registrations.tsx
++++ b/src/components/admin/registrations.tsx
+@@ -4,7 +4,26 @@
+  * admin-only; the database enforces that with row-level security.
+  */
+ import { useEffect, useMemo, useState } from "react";
+-import { ChevronDown, Undo2 } from "lucide-react";
++import {
++  Calendar,
++  Check,
++  ChevronDown,
++  ChevronLeft,
++  ChevronRight,
++  Copy,
++  GraduationCap,
++  IdCard,
++  Mail,
++  Phone,
++  QrCode,
++  RotateCcw,
++  Search,
++  Undo2,
++  User,
++  UserCheck,
++  Users,
++  X,
++} from "lucide-react";
+ 
+ import {
+   checkInMemberById,
+@@ -24,10 +43,25 @@ import {
+ } from "@/lib/admin-helpers";
+ import { cn } from "@/lib/utils";
+ import { CheckBadge, Select } from "./primitives";
++import {
++  Dialog,
++  DialogContent,
++  DialogHeader,
++  DialogTitle,
++} from "@/components/ui/dialog";
++import { PassCard } from "@/components/pass-card";
+ 
+ const PAGE_SIZE = 25;
+ 
+-type SortKey = "newest" | "oldest" | "name" | "name_desc" | "school" | "school_desc" | "status" | "attendance";
++type SortKey =
++  | "newest"
++  | "oldest"
++  | "name"
++  | "name_desc"
++  | "school"
++  | "school_desc"
++  | "status"
++  | "attendance";
+ 
+ const SORTS: { value: SortKey; label: string }[] = [
+   { value: "newest", label: "Newest first" },
+@@ -83,6 +117,7 @@ export function Registrations({
+   const [page, setPage] = useState(0);
+   const [open, setOpen] = useState<string | null>(null);
+   const [error, setError] = useState<string | null>(null);
++  const [previewPass, setPreviewPass] = useState<MemberRow | null>(null);
+ 
+   const all = useMemo(() => flattenMembers(schools), [schools]);
+   const grades = useMemo(
+@@ -125,7 +160,13 @@ export function Registrations({
+   const current = Math.min(page, pages - 1);
+   const visible = filtered.slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE);
+   const filtersActive =
+-    q !== "" || schoolId !== "all" || grade !== "all" || status !== "all" || attendance !== "all" || from !== "" || to !== "";
++    q !== "" ||
++    schoolId !== "all" ||
++    grade !== "all" ||
++    status !== "all" ||
++    attendance !== "all" ||
++    from !== "" ||
++    to !== "";
+ 
+   function reset() {
+     setQ("");
+@@ -148,101 +189,159 @@ export function Registrations({
+   }
+ 
+   return (
+-    <div className="flex flex-col gap-6">
+-      <div>
+-        <h1 className="font-display text-3xl font-bold tracking-tight">Registrations</h1>
+-        <p className="mt-1 text-sm text-muted-foreground">
+-          Every member registration, across all schools.
+-        </p>
++    <div className="flex flex-col gap-6 animate-in fade-in-50 duration-300">
++      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
++        <div>
++          <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">
++            All Registrations
++          </h1>
++          <p className="mt-1 text-sm text-muted-foreground">
++            Directory of all student delegates and teacher representatives across participating schools.
++          </p>
++        </div>
+       </div>
+ 
+-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+-        <label className="sm:col-span-2">
+-          <span className="sr-only">Search registrations</span>
+-          <input
+-            type="search"
+-            value={q}
+-            onChange={(e) => setQ(e.target.value)}
+-            placeholder="Search name, reference, school, code, email or phone"
+-            className="w-full rounded-lg border border-border bg-background px-3.5 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
++      {/* Filter and Search Panel */}
++      <div className="rounded-3xl border border-hairline/60 bg-surface/80 p-5 sm:p-6 shadow-sm">
++        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
++          <label className="sm:col-span-2 relative block">
++            <span className="sr-only">Search registrations</span>
++            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
++            <input
++              type="text"
++              value={q}
++              onChange={(e) => setQ(e.target.value)}
++              placeholder="Search by student name, reference (SSA-0007), school, code, email, phone…"
++              className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-10 text-sm text-foreground placeholder:text-muted-foreground focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30 transition"
++            />
++            {q && (
++              <button
++                type="button"
++                onClick={() => setQ("")}
++                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground hover:bg-surface hover:text-foreground cursor-pointer"
++              >
++                <X className="h-3.5 w-3.5" />
++              </button>
++            )}
++          </label>
++
++          <Select
++            label="Sort"
++            value={sort}
++            onChange={(v) => setSort(v as SortKey)}
++            options={SORTS}
+           />
+-        </label>
+-        <Select
+-          label="Sort"
+-          value={sort}
+-          onChange={(v) => setSort(v as SortKey)}
+-          options={SORTS}
+-        />
+-        <Select
+-          label="School"
+-          value={schoolId}
+-          onChange={setSchoolId}
+-          options={[
+-            { value: "all", label: "All schools" },
+-            ...schools.map((s) => ({ value: s.id, label: `${s.name}${s.short_code ? ` (${s.short_code})` : ""}` })),
+-          ]}
+-        />
+-        <Select
+-          label="Grade or year"
+-          value={grade}
+-          onChange={setGrade}
+-          options={[{ value: "all", label: "All grades" }, ...grades.map((g) => ({ value: g, label: `Grade ${g}` }))]}
+-        />
+-        <Select
+-          label="Registration status"
+-          value={status}
+-          onChange={setStatus}
+-          options={[
+-            { value: "all", label: "Any status" },
+-            ...STATUS_OPTIONS.map((s) => ({ value: s, label: MEMBER_STATUS_LABEL[s] ?? s })),
+-          ]}
+-        />
+-        <Select
+-          label="Check-in status"
+-          value={attendance}
+-          onChange={setAttendance}
+-          options={[
+-            { value: "all", label: "Any attendance" },
+-            { value: "in", label: "Checked in" },
+-            { value: "out", label: "Not checked in" },
+-          ]}
+-        />
+-        <label className="flex flex-col gap-1">
+-          <span className="text-xs text-muted-foreground">Registered from</span>
+-          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+-        </label>
+-        <label className="flex flex-col gap-1">
+-          <span className="text-xs text-muted-foreground">Registered to</span>
+-          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+-        </label>
+-      </div>
+ 
+-      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground" aria-live="polite">
+-        <p>
+-          {filtered.length} of {all.length} registration{all.length === 1 ? "" : "s"}
+-          {filtersActive ? " match your filters" : ""}
+-        </p>
+-        {filtersActive ? (
+-          <button type="button" onClick={reset} className="rounded-md border border-border px-3 py-1 text-xs font-medium text-foreground hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+-            Reset filters
+-          </button>
+-        ) : null}
++          <Select
++            label="School"
++            value={schoolId}
++            onChange={setSchoolId}
++            options={[
++              { value: "all", label: "All schools" },
++              ...schools.map((s) => ({
++                value: s.id,
++                label: `${s.name}${s.short_code ? ` (${s.short_code})` : ""}`,
++              })),
++            ]}
++          />
++
++          <Select
++            label="Grade or year"
++            value={grade}
++            onChange={setGrade}
++            options={[
++              { value: "all", label: "All grades" },
++              ...grades.map((g) => ({ value: g, label: `Grade ${g}` })),
++            ]}
++          />
++
++          <Select
++            label="Registration status"
++            value={status}
++            onChange={setStatus}
++            options={[
++              { value: "all", label: "Any status" },
++              ...STATUS_OPTIONS.map((s) => ({ value: s, label: MEMBER_STATUS_LABEL[s] ?? s })),
++            ]}
++          />
++
++          <Select
++            label="Check-in status"
++            value={attendance}
++            onChange={setAttendance}
++            options={[
++              { value: "all", label: "Any attendance" },
++              { value: "in", label: "Checked in" },
++              { value: "out", label: "Not checked in" },
++            ]}
++          />
++
++          <div className="flex items-center gap-2">
++            <label className="flex-1 flex flex-col gap-1">
++              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
++                From Date
++              </span>
++              <input
++                type="date"
++                value={from}
++                onChange={(e) => setFrom(e.target.value)}
++                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold transition cursor-pointer"
++              />
++            </label>
++
++            <label className="flex-1 flex flex-col gap-1">
++              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
++                To Date
++              </span>
++              <input
++                type="date"
++                value={to}
++                onChange={(e) => setTo(e.target.value)}
++                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold transition cursor-pointer"
++              />
++            </label>
++          </div>
++        </div>
++
++        {/* Filter Results Summary & Reset */}
++        <div className="mt-5 pt-4 border-t border-hairline/60 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
++          <p>
++            Showing <strong className="text-foreground">{filtered.length}</strong> of{" "}
++            {all.length} registered delegates
++            {filtersActive ? " matching active filters" : ""}.
++          </p>
++
++          {filtersActive && (
++            <button
++              type="button"
++              onClick={reset}
++              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-foreground hover:border-gold/40 hover:text-gold active:scale-95 transition cursor-pointer"
++            >
++              <RotateCcw className="h-3 w-3" />
++              <span>Reset all filters</span>
++            </button>
++          )}
++        </div>
+       </div>
+ 
+       {error && (
+-        <p role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm">
++        <div
++          role="alert"
++          className="rounded-2xl border border-destructive/40 bg-destructive/10 p-4 text-sm font-medium text-destructive-foreground"
++        >
+           {error}
+-        </p>
++        </div>
+       )}
+ 
++      {/* Registrations List */}
+       {all.length === 0 ? (
+-        <p className="rounded-xl border border-dashed border-hairline p-8 text-center text-sm text-muted-foreground">
+-          No members have registered yet.
+-        </p>
++        <div className="rounded-2xl border border-dashed border-hairline/60 p-12 text-center text-sm text-muted-foreground">
++          No members registered yet.
++        </div>
+       ) : filtered.length === 0 ? (
+-        <p className="rounded-xl border border-dashed border-hairline p-8 text-center text-sm text-muted-foreground">
+-          No registrations match. Try removing a filter.
+-        </p>
++        <div className="rounded-2xl border border-dashed border-hairline/60 p-12 text-center text-sm text-muted-foreground">
++          No registrations match the selected filters.
++        </div>
+       ) : (
+         <ul className="flex flex-col gap-3">
+           {visible.map((row) => (
+@@ -252,25 +351,61 @@ export function Registrations({
+               isAdmin={isAdmin}
+               expanded={open === row.member.id}
+               onToggle={() => setOpen(open === row.member.id ? null : row.member.id)}
++              onPreviewPass={() => setPreviewPass(row)}
+               act={act}
+             />
+           ))}
+         </ul>
+       )}
+ 
+-      {pages > 1 ? (
+-        <nav aria-label="Pagination" className="flex items-center justify-between gap-3 text-sm">
+-          <button type="button" disabled={current === 0} onClick={() => setPage(current - 1)} className="rounded-md border border-border px-3 py-1.5 font-medium hover:bg-surface disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+-            Previous
++      {/* Pagination Controls */}
++      {pages > 1 && (
++        <nav
++          aria-label="Pagination"
++          className="flex items-center justify-between gap-3 rounded-2xl border border-hairline/60 bg-surface/50 p-3 text-xs sm:text-sm"
++        >
++          <button
++            type="button"
++            disabled={current === 0}
++            onClick={() => setPage(current - 1)}
++            className="inline-flex items-center gap-1 rounded-xl border border-border bg-background px-3 py-1.5 font-semibold text-foreground hover:border-gold/40 hover:text-gold disabled:opacity-40 transition cursor-pointer"
++          >
++            <ChevronLeft className="h-4 w-4" />
++            <span>Previous</span>
+           </button>
+-          <span className="tabular-nums text-muted-foreground">
+-            Page {current + 1} of {pages}
++
++          <span className="tabular-nums font-medium text-muted-foreground">
++            Page <strong className="text-foreground">{current + 1}</strong> of {pages}
+           </span>
+-          <button type="button" disabled={current >= pages - 1} onClick={() => setPage(current + 1)} className="rounded-md border border-border px-3 py-1.5 font-medium hover:bg-surface disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+-            Next
++
++          <button
++            type="button"
++            disabled={current >= pages - 1}
++            onClick={() => setPage(current + 1)}
++            className="inline-flex items-center gap-1 rounded-xl border border-border bg-background px-3 py-1.5 font-semibold text-foreground hover:border-gold/40 hover:text-gold disabled:opacity-40 transition cursor-pointer"
++          >
++            <span>Next</span>
++            <ChevronRight className="h-4 w-4" />
+           </button>
+         </nav>
+-      ) : null}
++      )}
++
++      {/* Digital Pass Preview Dialog */}
++      <Dialog open={!!previewPass} onOpenChange={(open) => !open && setPreviewPass(null)}>
++        {previewPass && (
++          <DialogContent className="max-w-md border border-hairline/60 bg-surface/95 backdrop-blur-xl p-6 rounded-3xl shadow-2xl">
++            <DialogHeader>
++              <DialogTitle className="text-lg font-bold text-foreground flex items-center gap-2">
++                <IdCard className="h-5 w-5 text-gold" />
++                <span>Attendee Digital Pass</span>
++              </DialogTitle>
++            </DialogHeader>
++            <div className="mt-4 flex justify-center">
++              <PassCard member={previewPass.member} schoolName={previewPass.school.name} />
++            </div>
++          </DialogContent>
++        )}
++      </Dialog>
+     </div>
+   );
+ }
+@@ -280,18 +415,21 @@ function MemberItem({
+   isAdmin,
+   expanded,
+   onToggle,
++  onPreviewPass,
+   act,
+ }: {
+   row: MemberRow;
+   isAdmin: boolean;
+   expanded: boolean;
+   onToggle: () => void;
++  onPreviewPass: () => void;
+   act: (fn: () => Promise<unknown>) => Promise<void>;
+ }) {
+   const { member: m, school: s } = row;
+   const status = memberStatus(m) as MemberStatus;
+   const [notes, setNotes] = useState(m.internal_notes ?? "");
+   const [checking, setChecking] = useState(false);
++  const [copied, setCopied] = useState(false);
+ 
+   async function checkIn() {
+     if (checking) return;
+@@ -303,109 +441,201 @@ function MemberItem({
+     }
+   }
+ 
++  const copyRef = (e: React.MouseEvent) => {
++    e.stopPropagation();
++    navigator.clipboard.writeText(memberRef(m));
++    setCopied(true);
++    setTimeout(() => setCopied(false), 2000);
++  };
++
+   return (
+-    <li className="rounded-2xl border border-hairline bg-surface">
++    <li className="rounded-2xl border border-hairline/60 bg-surface/80 transition-all duration-200 hover:border-gold/30 shadow-sm">
+       <button
+         type="button"
+         onClick={onToggle}
+         aria-expanded={expanded}
+-        className="flex w-full flex-wrap items-center justify-between gap-3 rounded-2xl p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-5"
++        className="flex w-full flex-wrap items-center justify-between gap-3 rounded-2xl p-4 sm:p-5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold cursor-pointer"
+       >
+-        <div className="min-w-0">
+-          <p className="truncate font-semibold text-foreground">{m.full_name}</p>
+-          <p className="mt-0.5 truncate text-sm text-muted-foreground">
+-            <span className="font-mono">{memberRef(m)}</span> · {s.name}
+-            {s.short_code ? <span className="font-mono"> ({s.short_code})</span> : null}
+-            {m.grade ? ` · Grade ${m.grade}` : ""}
+-          </p>
++        <div className="flex items-center gap-3.5 min-w-0">
++          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-hairline/60 bg-background/80 text-foreground font-mono text-xs font-bold">
++            <User className="h-5 w-5 text-gold" />
++          </div>
++
++          <div className="min-w-0">
++            <p className="truncate text-base sm:text-lg font-bold text-foreground">
++              {m.full_name}
++            </p>
++            <p className="mt-0.5 truncate text-xs text-muted-foreground flex flex-wrap items-center gap-2">
++              <span className="font-mono text-gold font-semibold">{memberRef(m)}</span>
++              <span>•</span>
++              <span className="font-semibold text-foreground/90">{s.name}</span>
++              {s.short_code && (
++                <span className="font-mono text-muted-foreground">({s.short_code})</span>
++              )}
++              {m.grade ? <span>• Grade {m.grade}</span> : null}
++              {m.role ? <span>• {m.role}</span> : null}
++            </p>
++          </div>
+         </div>
+-        <div className="flex shrink-0 flex-wrap items-center gap-3">
+-          <span className={cn("text-xs font-medium", status === "needs_review" ? "text-amber-400" : status === "cancelled" ? "text-muted-foreground line-through" : "text-gold")}>
++
++        <div className="flex shrink-0 items-center gap-3">
++          <span
++            className={cn(
++              "text-xs font-semibold uppercase tracking-wider",
++              status === "needs_review"
++                ? "text-amber-400"
++                : status === "cancelled"
++                  ? "text-muted-foreground line-through"
++                  : "text-gold",
++            )}
++          >
+             {MEMBER_STATUS_LABEL[status] ?? status}
+           </span>
+           <CheckBadge checkedIn={!!m.checked_in_at} />
+-          <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", expanded && "rotate-180")} aria-hidden />
++          <div
++            className={cn(
++              "flex h-7 w-7 items-center justify-center rounded-lg border border-hairline/60 bg-background/50 transition-transform duration-200",
++              expanded && "rotate-180 text-gold",
++            )}
++          >
++            <ChevronDown className="h-4 w-4" aria-hidden />
++          </div>
+         </div>
+       </button>
+ 
+       {expanded && (
+-        <div className="flex flex-col gap-5 border-t border-hairline p-4 sm:p-5">
+-          <dl className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+-            <Item label="Email" value={m.email ?? "—"} />
+-            <Item label="Phone" value={m.phone ?? "—"} />
+-            <Item label="Registered" value={fmtUtcLocal(m.created_at)} />
+-            <Item label="Checked in" value={m.checked_in_at ? fmtUtcLocal(m.checked_in_at) : "—"} />
++        <div className="flex flex-col gap-5 border-t border-hairline/60 p-5 sm:p-6 bg-background/30 rounded-b-2xl animate-in slide-in-from-top-2 duration-200">
++          <dl className="grid gap-4 text-xs sm:text-sm sm:grid-cols-2 lg:grid-cols-4 pb-4 border-b border-hairline/40">
++            <Item label="Email" value={m.email ?? "—"} icon={Mail} />
++            <Item label="Phone" value={m.phone ?? "—"} icon={Phone} />
++            <Item label="Registered Date" value={fmtUtcLocal(m.created_at)} icon={Calendar} />
++            <Item
++              label="Check-in Timestamp"
++              value={m.checked_in_at ? fmtUtcLocal(m.checked_in_at) : "Not arrived yet"}
++              icon={UserCheck}
++            />
+           </dl>
+ 
+-          <div className="flex flex-wrap items-center gap-2">
++          {/* Quick Action Buttons */}
++          <div className="flex flex-wrap items-center gap-2.5">
++            <button
++              type="button"
++              onClick={onPreviewPass}
++              className="inline-flex items-center gap-1.5 rounded-xl border border-gold/40 bg-gold/10 px-3.5 py-2 text-xs font-semibold text-gold hover:bg-gold/20 active:scale-95 transition cursor-pointer"
++            >
++              <QrCode className="h-3.5 w-3.5" />
++              <span>View Digital Pass</span>
++            </button>
++
++            <button
++              type="button"
++              onClick={copyRef}
++              className="inline-flex items-center gap-1.5 rounded-xl border border-hairline/80 bg-background px-3 py-2 text-xs font-semibold text-foreground hover:border-gold/40 hover:text-gold active:scale-95 transition cursor-pointer"
++            >
++              {copied ? (
++                <>
++                  <Check className="h-3.5 w-3.5 text-emerald-400" />
++                  <span className="text-emerald-400">Reference Copied</span>
++                </>
++              ) : (
++                <>
++                  <Copy className="h-3.5 w-3.5" />
++                  <span>Copy Reference</span>
++                </>
++              )}
++            </button>
++
+             {m.checked_in_at ? (
+               <button
+                 type="button"
+                 onClick={() => {
+-                  if (window.confirm(`Undo the check-in for ${m.full_name}?`)) void act(() => undoCheckIn(m.id));
++                  if (window.confirm(`Undo the check-in for ${m.full_name}?`))
++                    void act(() => undoCheckIn(m.id));
+                 }}
+-                className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
++                className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-3.5 py-2 text-xs font-semibold text-muted-foreground hover:border-destructive/40 hover:text-destructive active:scale-95 transition cursor-pointer"
+               >
+-                <Undo2 className="h-4 w-4" aria-hidden /> Undo check-in
++                <Undo2 className="h-3.5 w-3.5" />
++                <span>Undo Check-in</span>
+               </button>
+             ) : (
+               <button
+                 type="button"
+                 disabled={checking || status === "cancelled"}
+                 onClick={() => void checkIn()}
+-                className="rounded-md bg-gold px-4 py-1.5 text-sm font-bold text-[#0A0A0A] hover:brightness-110 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
++                className="inline-flex items-center gap-1.5 rounded-xl bg-gold px-4 py-2 text-xs font-bold text-black hover:brightness-110 active:scale-95 transition cursor-pointer disabled:opacity-50"
+               >
+-                Check in
++                <UserCheck className="h-3.5 w-3.5 text-black" />
++                <span>Confirm Check In</span>
+               </button>
+             )}
+           </div>
+ 
+-          {isAdmin ? (
+-            <div className="grid gap-4 border-t border-hairline pt-5 sm:grid-cols-2">
+-              <label className="flex flex-col gap-1.5 text-sm">
+-                <span className="font-medium">Registration status</span>
++          {isAdmin && (
++            <div className="grid gap-4 border-t border-hairline/40 pt-5 sm:grid-cols-2">
++              <label className="flex flex-col gap-1.5 text-xs sm:text-sm">
++                <span className="font-semibold text-foreground">Registration Status</span>
+                 <select
+                   value={status}
+                   onChange={(e) => {
+                     const next = e.target.value as MemberStatus;
+-                    if (next === "cancelled" && !window.confirm(`Cancel the registration for ${m.full_name}? They won't be able to check in.`)) return;
++                    if (
++                      next === "cancelled" &&
++                      !window.confirm(
++                        `Cancel the registration for ${m.full_name}? They will not be able to check in.`,
++                      )
++                    )
++                      return;
+                     void act(() => setMemberStatus(m.id, next));
+                   }}
+-                  className="rounded-lg border border-border bg-background px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
++                  className="rounded-xl border border-border bg-background px-3 py-2 text-xs sm:text-sm text-foreground focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold transition cursor-pointer"
+                 >
+                   {STATUS_OPTIONS.map((o) => (
+-                    <option key={o} value={o}>
++                    <option key={o} value={o} className="bg-background text-foreground">
+                       {MEMBER_STATUS_LABEL[o] ?? o}
+                     </option>
+                   ))}
+                 </select>
+               </label>
+-              <label className="flex flex-col gap-1.5 text-sm">
+-                <span className="font-medium">Internal notes (not shown to the member)</span>
++
++              <label className="flex flex-col gap-1.5 text-xs sm:text-sm">
++                <span className="font-semibold text-foreground">Internal Notes (Organizers Only)</span>
+                 <textarea
+                   value={notes}
+                   maxLength={1000}
+-                  rows={3}
++                  rows={2}
+                   onChange={(e) => setNotes(e.target.value)}
+                   onBlur={() => {
+-                    if (notes.trim() !== (m.internal_notes ?? "")) void act(() => setMemberNotes(m.id, notes));
++                    if (notes.trim() !== (m.internal_notes ?? ""))
++                      void act(() => setMemberNotes(m.id, notes));
+                   }}
+-                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
++                  placeholder="Notes on badges, dietary restrictions, certificates…"
++                  className="rounded-xl border border-border bg-background px-3 py-2 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold transition"
+                 />
+               </label>
+             </div>
+-          ) : null}
++          )}
+         </div>
+       )}
+     </li>
+   );
+ }
+ 
+-function Item({ label, value }: { label: string; value: string }) {
++function Item({
++  label,
++  value,
++  icon: Icon,
++}: {
++  label: string;
++  value: string;
++  icon?: typeof Mail;
++}) {
+   return (
+-    <div>
+-      <dt className="text-xs uppercase tracking-wide text-muted-foreground">{label}</dt>
+-      <dd className="mt-0.5 break-words text-foreground">{value}</dd>
++    <div className="min-w-0 flex flex-col gap-0.5">
++      <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
++        {Icon && <Icon className="h-3 w-3 text-gold/70" />}
++        <span>{label}</span>
++      </dt>
++      <dd className="break-words font-medium text-foreground">{value}</dd>
+     </div>
+   );
+ }
+diff --git a/src/components/admin/schools.tsx b/src/components/admin/schools.tsx
+index 3bc46ff..a06ed9f 100644
+--- a/src/components/admin/schools.tsx
++++ b/src/components/admin/schools.tsx
+@@ -1,5 +1,22 @@
+ import { useMemo, useState } from "react";
+-import { ChevronDown, QrCode, Printer, Trash2, Undo2 } from "lucide-react";
++import {
++  Check,
++  ChevronDown,
++  Copy,
++  GraduationCap,
++  Mail,
++  MapPin,
++  Phone,
++  Printer,
++  QrCode,
++  Search,
++  Trash2,
++  Undo2,
++  User,
++  UserCheck,
++  Users,
++  X,
++} from "lucide-react";
+ 
+ import {
+   Dialog,
+@@ -47,6 +64,7 @@ export function Schools({
+   const [open, setOpen] = useState<string | null>(null);
+   const [error, setError] = useState<string | null>(null);
+   const [passFor, setPassFor] = useState<{ school: School; member: Member | null } | null>(null);
++  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+ 
+   const filtered = useMemo(() => {
+     const term = q.trim().toLowerCase();
+@@ -79,25 +97,50 @@ export function Schools({
+     }
+   }
+ 
++  const copyToClipboard = (text: string) => {
++    navigator.clipboard.writeText(text);
++    setCopiedCode(text);
++    setTimeout(() => setCopiedCode(null), 2000);
++  };
++
+   const isAdmin = staff.role === "admin";
+ 
+   return (
+-    <div className="flex flex-col gap-5">
+-      <div>
+-        <h1 className="font-display text-3xl font-bold tracking-tight">Schools</h1>
+-        <p className="mt-1 text-sm text-muted-foreground">
+-          {filtered.length} of {schools.length} school{schools.length === 1 ? "" : "s"}
+-        </p>
++    <div className="flex flex-col gap-6 animate-in fade-in-50 duration-300">
++      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
++        <div>
++          <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">
++            School Delegations
++          </h1>
++          <p className="mt-1 text-sm text-muted-foreground">
++            Showing {filtered.length} of {schools.length} registered school
++            {schools.length === 1 ? "" : "s"}.
++          </p>
++        </div>
+       </div>
+ 
+-      <div className="grid gap-3 rounded-2xl border border-hairline bg-surface p-4 sm:grid-cols-[2fr_1fr]">
+-        <input
+-          value={q}
+-          onChange={(e) => setQ(e.target.value)}
+-          placeholder="Search school, district, code, teacher, email or member"
+-          aria-label="Search schools"
+-          className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+-        />
++      {/* Search and Filters Bar */}
++      <div className="grid gap-3 rounded-2xl border border-hairline/60 bg-surface/80 p-4 sm:grid-cols-[2fr_1fr] shadow-sm">
++        <div className="relative">
++          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
++          <input
++            value={q}
++            onChange={(e) => setQ(e.target.value)}
++            placeholder="Search school name, district, code, teacher, email or student…"
++            aria-label="Search schools"
++            className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-10 text-sm text-foreground placeholder:text-muted-foreground focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30 transition"
++          />
++          {q && (
++            <button
++              type="button"
++              onClick={() => setQ("")}
++              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground hover:bg-surface hover:text-foreground cursor-pointer"
++            >
++              <X className="h-3.5 w-3.5" />
++            </button>
++          )}
++        </div>
++
+         <Select
+           label="Status filter"
+           value={status}
+@@ -113,72 +156,114 @@ export function Schools({
+       </div>
+ 
+       {error && (
+-        <p
++        <div
+           role="alert"
+-          className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm"
++          className="rounded-2xl border border-destructive/40 bg-destructive/10 p-4 text-sm font-medium text-destructive-foreground"
+         >
+           {error}
+-        </p>
++        </div>
+       )}
+ 
+       {filtered.length === 0 && (
+-        <p className="rounded-xl border border-dashed border-hairline p-8 text-center text-sm text-muted-foreground">
+-          {schools.length === 0 ? "No schools have registered yet." : "No schools match."}
+-        </p>
++        <div className="rounded-2xl border border-dashed border-hairline/60 p-12 text-center text-sm text-muted-foreground">
++          {schools.length === 0 ? "No schools have registered yet." : "No schools match your search query."}
++        </div>
+       )}
+ 
++      {/* Schools Accordion Cards */}
+       <ul className="flex flex-col gap-3">
+         {filtered.map((s) => {
+           const members = [...s.members].sort((a, b) => a.member_no - b.member_no);
+           const inCount = members.filter((m) => m.checked_in_at).length;
+           const expanded = open === s.id;
++          const code = s.short_code ?? s.registration_code;
++          const complete = members.length > 0 && inCount === members.length;
++
+           return (
+-            <li key={s.id} className="rounded-2xl border border-hairline bg-surface">
++            <li
++              key={s.id}
++              className="rounded-2xl border border-hairline/60 bg-surface/80 transition-all duration-200 hover:border-gold/30 shadow-sm"
++            >
+               <button
+                 onClick={() => setOpen(expanded ? null : s.id)}
+                 aria-expanded={expanded}
+-                className="flex w-full items-center justify-between gap-4 rounded-2xl p-5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
++                className="flex w-full items-center justify-between gap-4 rounded-2xl p-4 sm:p-5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold cursor-pointer"
+               >
+-                <div className="min-w-0">
+-                  <p className="truncate font-semibold text-foreground">{s.name}</p>
+-                  <p className="mt-0.5 truncate text-sm text-muted-foreground">
+-                    {s.district} · <span className="font-mono">{s.short_code ?? s.registration_code}</span>
+-                    {s.code_active === false ? " (code deactivated)" : ""} ·{" "}
+-                    {fmtUtcLocal(s.created_at)}
+-                  </p>
++                <div className="flex items-center gap-3.5 min-w-0">
++                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-hairline/60 bg-background/80 text-gold">
++                    <GraduationCap className="h-5 w-5" />
++                  </div>
++
++                  <div className="min-w-0">
++                    <div className="flex items-center gap-2">
++                      <p className="truncate text-base sm:text-lg font-bold text-foreground">
++                        {s.name}
++                      </p>
++                      {complete && (
++                        <span className="hidden sm:inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">
++                          <Check className="h-2.5 w-2.5" /> All Arrived
++                        </span>
++                      )}
++                    </div>
++                    <p className="mt-0.5 truncate text-xs text-muted-foreground flex flex-wrap items-center gap-2">
++                      <span>{s.district}</span>
++                      <span>•</span>
++                      <span className="font-mono text-gold font-semibold">{code}</span>
++                      {s.code_active === false && (
++                        <span className="text-destructive font-medium">(code deactivated)</span>
++                      )}
++                      <span>•</span>
++                      <span>Teacher: {s.teacher_name}</span>
++                    </p>
++                  </div>
+                 </div>
+-                <div className="flex shrink-0 items-center gap-4">
++
++                <div className="flex shrink-0 items-center gap-3">
+                   <StatusBadge status={s.status} />
+-                  <span className="rounded-full border border-hairline px-2.5 py-0.5 text-xs font-medium tabular-nums text-muted-foreground">
++                  <span className="rounded-full border border-hairline/80 bg-background/80 px-2.5 py-1 text-xs font-semibold tabular-nums text-foreground">
+                     {inCount}/{members.length} in
+                   </span>
+-                  <ChevronDown
++                  <div
+                     className={cn(
+-                      "h-4 w-4 text-muted-foreground transition-transform",
+-                      expanded && "rotate-180",
++                      "flex h-7 w-7 items-center justify-center rounded-lg border border-hairline/60 bg-background/50 transition-transform duration-200",
++                      expanded && "rotate-180 text-gold",
+                     )}
+-                    aria-hidden
+-                  />
++                  >
++                    <ChevronDown className="h-4 w-4" aria-hidden />
++                  </div>
+                 </div>
+               </button>
+ 
+               {expanded && (
+-                <div className="border-t border-hairline p-5">
+-                  <dl className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+-                    <Detail label="Teacher in charge" value={s.teacher_name} />
+-                    <Detail label="Phone" value={s.contact_phone} />
+-                    <Detail label="Email" value={s.contact_email} />
+-                    <Detail label="Notes" value={s.notes ?? "—"} />
+-                    <Detail label="Short code" value={s.short_code ?? "—"} />
+-                    <Detail label="Radio club" value={s.club_name ?? "—"} />
+-                    <Detail label="MIC phone / email" value={[s.mic_phone, s.mic_email].filter(Boolean).join(" · ") || "—"} />
++                <div className="border-t border-hairline/60 p-5 sm:p-6 bg-background/30 rounded-b-2xl animate-in slide-in-from-top-2 duration-200">
++                  {/* Detailed Information Grid */}
++                  <dl className="grid gap-4 text-xs sm:text-sm sm:grid-cols-2 lg:grid-cols-4 pb-5 border-b border-hairline/40">
++                    <Detail label="Teacher in Charge" value={s.teacher_name} icon={User} />
++                    <Detail label="Phone" value={s.contact_phone} icon={Phone} />
++                    <Detail label="Email" value={s.contact_email} icon={Mail} />
++                    <Detail label="District" value={s.district} icon={MapPin} />
++                    <Detail label="Short Code" value={s.short_code ?? "—"} />
++                    <Detail label="Radio Club" value={s.club_name ?? "—"} />
++                    <Detail
++                      label="MIC Contacts"
++                      value={[s.mic_phone, s.mic_email].filter(Boolean).join(" · ") || "—"}
++                    />
+                     <Detail label="Address" value={s.address ?? "—"} />
+                   </dl>
+ 
+-                  {s.short_code ? <SchoolCodePanel code={s.short_code} schoolName={s.name} active={s.code_active !== false} /> : null}
++                  {/* School Code Sharing Component */}
++                  {s.short_code && (
++                    <div className="mt-5">
++                      <SchoolCodePanel
++                        code={s.short_code}
++                        schoolName={s.name}
++                        active={s.code_active !== false}
++                      />
++                    </div>
++                  )}
+ 
+-                  {staff.role === "admin" && s.short_code ? (
+-                    <div className="mt-4">
++                  {staff.role === "admin" && s.short_code && (
++                    <div className="mt-4 flex items-center gap-3">
+                       <button
+                         onClick={() => {
+                           const next = s.code_active === false;
+@@ -187,92 +272,127 @@ export function Schools({
+                             : `Deactivate the code for ${s.name}? New members will be blocked; existing registrations are kept.`;
+                           if (window.confirm(msg)) void act(() => setSchoolCodeActive(s.id, next));
+                         }}
+-                        className="rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
++                        className="rounded-xl border border-hairline/80 bg-surface px-3 py-1.5 text-xs font-semibold text-foreground hover:border-gold/40 hover:text-gold transition cursor-pointer"
++                      >
++                        {s.code_active === false
++                          ? "Reactivate school code"
++                          : "Deactivate school code"}
++                      </button>
++
++                      <button
++                        type="button"
++                        onClick={() => copyToClipboard(code)}
++                        className="inline-flex items-center gap-1.5 rounded-xl border border-hairline/80 bg-surface px-3 py-1.5 text-xs font-semibold text-foreground hover:border-gold/40 hover:text-gold transition cursor-pointer"
+                       >
+-                        {s.code_active === false ? "Reactivate school code" : "Deactivate school code"}
++                        {copiedCode === code ? (
++                          <>
++                            <Check className="h-3.5 w-3.5 text-emerald-400" />
++                            <span className="text-emerald-400">Code Copied!</span>
++                          </>
++                        ) : (
++                          <>
++                            <Copy className="h-3.5 w-3.5" />
++                            <span>Copy School Code</span>
++                          </>
++                        )}
+                       </button>
+                     </div>
+-                  ) : null}
++                  )}
+ 
+-                  <div className="mt-5 overflow-x-auto rounded-xl border border-hairline">
++                  {/* Registered Delegation Members Table */}
++                  <div className="mt-6 overflow-x-auto rounded-2xl border border-hairline/60 bg-surface/50 shadow-sm">
+                     <table className="w-full text-left text-sm">
+-                      <thead className="bg-background/60 text-xs uppercase tracking-wide text-muted-foreground">
++                      <thead className="bg-background/80 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-hairline/60">
+                         <tr>
+-                          <th className="px-4 py-2.5 font-medium">No.</th>
+-                          <th className="px-4 py-2.5 font-medium">Name</th>
+-                          <th className="px-4 py-2.5 font-medium">Role</th>
+-                          <th className="px-4 py-2.5 font-medium">Attendance</th>
+-                          <th className="px-4 py-2.5 font-medium">
+-                            <span className="sr-only">Actions</span>
+-                          </th>
++                          <th className="px-4 py-3">Pass No.</th>
++                          <th className="px-4 py-3">Student / Member Name</th>
++                          <th className="px-4 py-3">Role</th>
++                          <th className="px-4 py-3">Attendance</th>
++                          <th className="px-4 py-3 text-right">Actions</th>
+                         </tr>
+                       </thead>
+-                      <tbody className="divide-y divide-hairline">
+-                        {members.map((m) => (
+-                          <tr key={m.id}>
+-                            <td className="px-4 py-2.5 font-mono text-gold">
+-                              #{formatMemberNo(m.member_no)}
++                      <tbody className="divide-y divide-hairline/40">
++                        {members.length === 0 ? (
++                          <tr>
++                            <td colSpan={5} className="px-4 py-8 text-center text-xs text-muted-foreground">
++                              No members registered under this school yet.
+                             </td>
+-                            <td className="px-4 py-2.5">
+-                              {m.full_name}
+-                              {m.grade ? (
+-                                <span className="text-muted-foreground"> · Gr {m.grade}</span>
+-                              ) : null}
+-                            </td>
+-                            <td className="px-4 py-2.5 capitalize text-muted-foreground">
+-                              {m.role}
+-                            </td>
+-                            <td className="px-4 py-2.5">
+-                              <CheckBadge checkedIn={!!m.checked_in_at} />
+-                            </td>
+-                            <td className="px-4 py-2.5">
+-                              <div className="flex justify-end gap-2">
+-                                <button
+-                                  onClick={() => setPassFor({ school: s, member: m })}
+-                                  aria-label={`Show pass for ${m.full_name}`}
+-                                  className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/10 px-2.5 py-1 text-xs font-medium text-gold hover:border-gold/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+-                                >
+-                                  <QrCode className="h-3.5 w-3.5" aria-hidden /> Pass
+-                                </button>
+-                                {m.checked_in_at ? (
+-                                  <button
+-                                    onClick={() => void act(() => undoCheckIn(m.id))}
+-                                    className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs font-medium hover:bg-background"
+-                                  >
+-                                    <Undo2 className="h-3.5 w-3.5" aria-hidden /> Undo
+-                                  </button>
+-                                ) : (
++                          </tr>
++                        ) : (
++                          members.map((m) => (
++                            <tr key={m.id} className="hover:bg-background/40 transition">
++                              <td className="px-4 py-3 font-mono font-bold text-gold text-xs">
++                                #{formatMemberNo(m.member_no)}
++                              </td>
++                              <td className="px-4 py-3 font-semibold text-foreground text-sm">
++                                {m.full_name}
++                                {m.grade ? (
++                                  <span className="text-xs font-normal text-muted-foreground">
++                                    {" "}
++                                    · Grade {m.grade}
++                                  </span>
++                                ) : null}
++                              </td>
++                              <td className="px-4 py-3 capitalize text-xs text-muted-foreground">
++                                {m.role}
++                              </td>
++                              <td className="px-4 py-3">
++                                <CheckBadge checkedIn={!!m.checked_in_at} />
++                              </td>
++                              <td className="px-4 py-3 text-right">
++                                <div className="flex items-center justify-end gap-2">
+                                   <button
+-                                    disabled={s.status === "cancelled"}
+-                                    onClick={() => void act(() => checkInMember(m.pass_code))}
+-                                    className="rounded-md bg-gold px-2.5 py-1 text-xs font-semibold text-gold-foreground hover:bg-gold-deep disabled:opacity-40"
++                                    onClick={() => setPassFor({ school: s, member: m })}
++                                    aria-label={`Show pass for ${m.full_name}`}
++                                    className="inline-flex items-center gap-1.5 rounded-lg border border-gold/40 bg-gold/10 px-2.5 py-1 text-xs font-semibold text-gold hover:bg-gold/20 active:scale-95 transition cursor-pointer"
+                                   >
+-                                    Check in
++                                    <QrCode className="h-3.5 w-3.5" aria-hidden /> Pass
+                                   </button>
+-                                )}
+-                              </div>
+-                            </td>
+-                          </tr>
+-                        ))}
++                                  {m.checked_in_at ? (
++                                    <button
++                                      onClick={() => void act(() => undoCheckIn(m.id))}
++                                      className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-semibold text-muted-foreground hover:border-destructive/40 hover:text-destructive active:scale-95 transition cursor-pointer"
++                                    >
++                                      <Undo2 className="h-3 w-3" aria-hidden /> Undo
++                                    </button>
++                                  ) : (
++                                    <button
++                                      disabled={s.status === "cancelled"}
++                                      onClick={() => void act(() => checkInMember(m.pass_code))}
++                                      className="rounded-lg bg-gold px-3 py-1 text-xs font-bold text-black hover:brightness-110 active:scale-95 disabled:opacity-40 transition cursor-pointer"
++                                    >
++                                      Check In
++                                    </button>
++                                  )}
++                                </div>
++                              </td>
++                            </tr>
++                          ))
++                        )}
+                       </tbody>
+                     </table>
+                   </div>
+ 
+-                  <div className="mt-5 flex flex-wrap items-center gap-2">
++                  {/* Delegation Controls Toolbar */}
++                  <div className="mt-6 flex flex-wrap items-center gap-3">
+                     <button
+                       onClick={() => setPassFor({ school: s, member: null })}
+-                      className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
++                      className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-2 text-xs font-semibold text-foreground hover:border-gold/40 hover:text-gold active:scale-95 transition cursor-pointer"
+                     >
+-                      <Printer className="h-4 w-4" aria-hidden /> All passes / print
++                      <Printer className="h-4 w-4" aria-hidden />
++                      <span>Print All Delegation Passes</span>
+                     </button>
+-                    {inCount < members.length && s.status !== "cancelled" && (
++
++                    {inCount < members.length && s.status !== "cancelled" && members.length > 0 && (
+                       <button
+                         onClick={() => void act(() => checkInTeam(s.id))}
+-                        className="rounded-md bg-gold px-3 py-2 text-sm font-semibold text-gold-foreground hover:bg-gold-deep"
++                        className="inline-flex items-center gap-2 rounded-xl bg-gold px-4 py-2 text-xs font-bold text-black hover:brightness-110 active:scale-95 transition cursor-pointer"
+                       >
+-                        Check in whole team
++                        <UserCheck className="h-4 w-4 text-black" />
++                        <span>Check In Whole Team ({members.length - inCount} remaining)</span>
+                       </button>
+                     )}
++
+                     {isAdmin && (
+                       <>
+                         <div className="ml-auto w-44">
+@@ -288,18 +408,19 @@ export function Schools({
+                             }))}
+                           />
+                         </div>
++
+                         <button
+                           onClick={() => {
+                             if (
+                               window.confirm(
+-                                `Permanently delete ${s.name} and its ${members.length} member(s)? This can't be undone.`,
++                                `Permanently delete ${s.name} and its ${members.length} member(s)? This cannot be undone.`,
+                               )
+                             ) {
+                               void act(() => deleteSchool(s.id));
+                             }
+                           }}
+-                          aria-label={`Delete ${s.name}`}
+-                          className="rounded-md border border-border p-2 text-muted-foreground hover:text-destructive-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
++                          title={`Delete ${s.name}`}
++                          className="rounded-xl border border-destructive/30 bg-destructive/10 p-2.5 text-destructive hover:bg-destructive/20 active:scale-95 transition cursor-pointer"
+                         >
+                           <Trash2 className="h-4 w-4" />
+                         </button>
+@@ -313,32 +434,37 @@ export function Schools({
+         })}
+       </ul>
+ 
++      {/* Digital Pass Preview Dialog */}
+       <Dialog open={passFor !== null} onOpenChange={(o) => !o && setPassFor(null)}>
+-        <DialogContent className="max-h-[90vh] max-w-xl overflow-y-auto rounded-3xl border-hairline bg-surface">
++        <DialogContent className="max-h-[90vh] max-w-xl overflow-y-auto rounded-3xl border border-hairline/60 bg-surface/95 backdrop-blur-xl p-6 shadow-2xl">
+           {passFor && (
+             <>
+               <DialogHeader>
+-                <DialogTitle className="font-display text-xl tracking-tight">
+-                  {passFor.member ? "Entry pass" : `Passes — ${passFor.school.name}`}
++                <DialogTitle className="font-display text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
++                  <QrCode className="h-5 w-5 text-gold" />
++                  <span>{passFor.member ? "Entry Pass" : `Delegation Passes — ${passFor.school.name}`}</span>
+                 </DialogTitle>
+-                <DialogDescription>
+-                  The QR encodes the pass code; the desk can also type the number.
++                <DialogDescription className="text-xs text-muted-foreground">
++                  The QR encodes the pass code; check-in staff can scan with a camera or scanner gun.
+                 </DialogDescription>
+               </DialogHeader>
+-              {passFor.member ? (
+-                <PassCard
+-                  schoolName={passFor.school.name}
+-                  member={{
+-                    member_no: passFor.member.member_no,
+-                    pass_code: passFor.member.pass_code,
+-                    full_name: passFor.member.full_name,
+-                    grade: passFor.member.grade,
+-                    role: passFor.member.role,
+-                  }}
+-                />
+-              ) : (
+-                <PassSheet data={schoolToPasses(passFor.school)} />
+-              )}
++
++              <div className="mt-4 flex justify-center">
++                {passFor.member ? (
++                  <PassCard
++                    schoolName={passFor.school.name}
++                    member={{
++                      member_no: passFor.member.member_no,
++                      pass_code: passFor.member.pass_code,
++                      full_name: passFor.member.full_name,
++                      grade: passFor.member.grade,
++                      role: passFor.member.role,
++                    }}
++                  />
++                ) : (
++                  <PassSheet data={schoolToPasses(passFor.school)} />
++                )}
++              </div>
+             </>
+           )}
+         </DialogContent>
+@@ -347,11 +473,22 @@ export function Schools({
+   );
+ }
+ 
+-function Detail({ label, value }: { label: string; value: string }) {
++function Detail({
++  label,
++  value,
++  icon: Icon,
++}: {
++  label: string;
++  value: string;
++  icon?: typeof User;
++}) {
+   return (
+-    <div className="min-w-0">
+-      <dt className="text-xs uppercase tracking-wide text-muted-foreground">{label}</dt>
+-      <dd className="mt-1 break-words text-foreground">{value}</dd>
++    <div className="min-w-0 flex flex-col gap-0.5">
++      <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
++        {Icon && <Icon className="h-3 w-3 text-gold/70" />}
++        <span>{label}</span>
++      </dt>
++      <dd className="break-words font-medium text-foreground">{value}</dd>
+     </div>
+   );
+ }
+diff --git a/src/components/bits/drift-wall.tsx b/src/components/bits/drift-wall.tsx
+index 4134215..cd36d0c 100644
+--- a/src/components/bits/drift-wall.tsx
++++ b/src/components/bits/drift-wall.tsx
+@@ -32,6 +32,7 @@ export interface DriftWallProps {
+   overlayColor?: string;
+   className?: string;
+   style?: CSSProperties;
++  onItemClick?: (item: DriftWallItem) => void;
+ }
+ 
+ interface ColumnMeta {
+@@ -81,7 +82,8 @@ const DriftWall = ({
+   grayscale = false,
+   overlayColor = '#060010',
+   className = '',
+-  style
++  style,
++  onItemClick
+ }: DriftWallProps) => {
+   const containerRef = useRef<HTMLDivElement>(null);
+   const planeRef = useRef<HTMLDivElement>(null);
+@@ -318,7 +320,19 @@ const DriftWall = ({
+       'data-tile-id': id,
+       'data-col': colIndex,
+       onFocus: () => activate(id, colIndex),
+-      onBlur: release
++      onBlur: release,
++      onClick: (e: React.MouseEvent) => {
++        if (!item.href) {
++          e.preventDefault();
++          onItemClick?.(item);
++        }
++      },
++      onKeyDown: (e: React.KeyboardEvent) => {
++        if (!item.href && (e.key === 'Enter' || e.key === ' ')) {
++          e.preventDefault();
++          onItemClick?.(item);
++        }
++      }
+     };
+     if (item.href) {
+       return (
+diff --git a/src/components/home/gallery.tsx b/src/components/home/gallery.tsx
+index d35553a..51cea79 100644
+--- a/src/components/home/gallery.tsx
++++ b/src/components/home/gallery.tsx
+@@ -1,8 +1,15 @@
+ import { useEffect, useMemo, useState } from "react";
++import { ChevronLeft, ChevronRight } from "lucide-react";
+ 
+-import DriftWall from "@/components/bits/drift-wall";
++import DriftWall, { type DriftWallItem } from "@/components/bits/drift-wall";
+ import { BlurText } from "@/components/bits/blur-text";
+-import { GALLERY } from "@/lib/content";
++import {
++  Dialog,
++  DialogContent,
++  DialogDescription,
++  DialogTitle,
++} from "@/components/ui/dialog";
++import { GALLERY, type GalleryItem } from "@/lib/content";
+ 
+ /*
+  * DriftWall's own mask feathers the top edge (and the sides via the ellipse).
+@@ -34,11 +41,46 @@ function useWallLayout() {
+  */
+ export function Gallery() {
+   const layout = useWallLayout();
+-  const items = useMemo(
+-    () => GALLERY.filter((g) => g.src).map((g) => ({ image: g.src as string, title: g.alt })),
++
++  const galleryItems = useMemo(
++    () => GALLERY.filter((g): g is GalleryItem & { src: string } => Boolean(g.src)),
+     [],
+   );
+ 
++  const items = useMemo(
++    () => galleryItems.map((g) => ({ image: g.src, title: g.alt })),
++    [galleryItems],
++  );
++
++  const [activePhotoIndex, setActivePhotoIndex] = useState<number | null>(null);
++  const activePhoto = activePhotoIndex !== null ? galleryItems[activePhotoIndex] : null;
++
++  const handleItemClick = (item: DriftWallItem) => {
++    const idx = galleryItems.findIndex((g) => g.src === item.image);
++    if (idx !== -1) {
++      setActivePhotoIndex(idx);
++    }
++  };
++
++  useEffect(() => {
++    if (activePhotoIndex === null) return;
++    const onKeyDown = (e: KeyboardEvent) => {
++      if (e.key === "ArrowLeft") {
++        e.preventDefault();
++        setActivePhotoIndex((prev) =>
++          prev !== null ? (prev > 0 ? prev - 1 : galleryItems.length - 1) : null,
++        );
++      } else if (e.key === "ArrowRight") {
++        e.preventDefault();
++        setActivePhotoIndex((prev) =>
++          prev !== null ? (prev < galleryItems.length - 1 ? prev + 1 : 0) : null,
++        );
++      }
++    };
++    window.addEventListener("keydown", onKeyDown);
++    return () => window.removeEventListener("keydown", onKeyDown);
++  }, [activePhotoIndex, galleryItems.length]);
++
+   return (
+     <section
+       id="gallery"
+@@ -87,8 +129,79 @@ export function Gallery() {
+           dim={0.55}
+           overlayColor="#060010"
+           style={{ maskImage: WALL_MASK, WebkitMaskImage: WALL_MASK }}
++          onItemClick={handleItemClick}
+         />
+       </div>
++
++      {/* Full image preview lightbox */}
++      <Dialog
++        open={activePhotoIndex !== null}
++        onOpenChange={(open) => {
++          if (!open) setActivePhotoIndex(null);
++        }}
++      >
++        {activePhoto && activePhotoIndex !== null && (
++          <DialogContent className="max-w-[94vw] sm:max-w-4xl lg:max-w-5xl border border-white/10 bg-[#090910]/95 backdrop-blur-2xl p-3 sm:p-5 text-white shadow-2xl rounded-2xl flex flex-col items-center gap-3">
++            {/* Header info */}
++            <div className="flex w-full items-center justify-between pr-10">
++              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">
++                Intra-School Workshop &bull; {activePhotoIndex + 1} of {galleryItems.length}
++              </span>
++            </div>
++
++            {/* Main Image with navigation controls */}
++            <div className="relative flex w-full max-h-[72vh] items-center justify-center overflow-hidden rounded-xl bg-black/60 py-1">
++              <img
++                src={activePhoto.src}
++                alt={activePhoto.alt || activePhoto.title}
++                className="max-h-[66vh] sm:max-h-[70vh] w-auto max-w-full rounded-lg object-contain select-none shadow-2xl transition-all duration-300"
++              />
++
++              {galleryItems.length > 1 && (
++                <>
++                  <button
++                    type="button"
++                    onClick={() =>
++                      setActivePhotoIndex((prev) =>
++                        prev !== null ? (prev > 0 ? prev - 1 : galleryItems.length - 1) : null,
++                      )
++                    }
++                    aria-label="Previous photo"
++                    className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 rounded-full border border-white/15 bg-black/75 p-2 sm:p-3 text-white/80 backdrop-blur-md transition hover:border-gold/50 hover:bg-black hover:text-gold hover:scale-105 active:scale-95 cursor-pointer focus:outline-none focus:ring-2 focus:ring-gold z-10"
++                  >
++                    <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
++                  </button>
++                  <button
++                    type="button"
++                    onClick={() =>
++                      setActivePhotoIndex((prev) =>
++                        prev !== null ? (prev < galleryItems.length - 1 ? prev + 1 : 0) : null,
++                      )
++                    }
++                    aria-label="Next photo"
++                    className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 rounded-full border border-white/15 bg-black/75 p-2 sm:p-3 text-white/80 backdrop-blur-md transition hover:border-gold/50 hover:bg-black hover:text-gold hover:scale-105 active:scale-95 cursor-pointer focus:outline-none focus:ring-2 focus:ring-gold z-10"
++                  >
++                    <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
++                  </button>
++                </>
++              )}
++            </div>
++
++            {/* Caption & Title */}
++            <div className="w-full px-2 pb-1 text-center sm:text-left">
++              <DialogTitle className="font-display text-lg sm:text-xl font-bold tracking-tight text-white">
++                {activePhoto.title}
++              </DialogTitle>
++              {activePhoto.caption && (
++                <DialogDescription className="mt-1 text-xs sm:text-sm text-neutral-400">
++                  {activePhoto.caption}
++                </DialogDescription>
++              )}
++            </div>
++          </DialogContent>
++        )}
++      </Dialog>
+     </section>
+   );
+ }
++
+diff --git a/src/components/site-footer.tsx b/src/components/site-footer.tsx
+index 82d8316..18a5aad 100644
+--- a/src/components/site-footer.tsx
++++ b/src/components/site-footer.tsx
+@@ -49,8 +49,11 @@ export function SiteFooter() {
+ 
+         <div className="mt-12 flex flex-col items-start justify-between gap-4 border-t border-hairline pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center">
+           <p>
+-            © {year} {EVENT.host}. Placeholder — replace with the confirmed edition year.
++            © {year} {EVENT.host}.
+           </p>
++          <span className="font-mono text-[9px] uppercase tracking-[0.25em] text-muted-foreground/25 select-none hover:text-muted-foreground/50 transition">
++            THENUX
++          </span>
+           <Link
+             to="/admin"
+             className="rounded-md px-2 py-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+diff --git a/src/routes/admin.tsx b/src/routes/admin.tsx
+index 300db99..7997c6a 100644
+--- a/src/routes/admin.tsx
++++ b/src/routes/admin.tsx
+@@ -1,12 +1,13 @@
+ import { Link, createFileRoute } from "@tanstack/react-router";
+-import { useCallback, useEffect, useState } from "react";
+-import { Loader2, ShieldCheck } from "lucide-react";
++import { useCallback, useEffect, useMemo, useState } from "react";
++import { Eye, EyeOff, Loader2, Lock, Mail, ShieldCheck, Sparkles } from "lucide-react";
+ 
+ import { Button } from "@/components/ui/button";
+ import { useReveal } from "@/hooks/use-reveal";
+ import { getSession, onAuthChange, signIn, signOut, type Session } from "@/lib/supabase";
+ import { getStaffProfile, listSchools, type School, type StaffProfile } from "@/lib/registration";
+-import { AdminTopBar, Tabs, type Tab } from "@/components/admin/primitives";
++import { flattenMembers, memberStatus } from "@/lib/admin-helpers";
++import { AdminTopBar, Tabs, type Tab, type TabCounts } from "@/components/admin/primitives";
+ import { Overview } from "@/components/admin/overview";
+ import { Schools } from "@/components/admin/schools";
+ import { CheckInDesk } from "@/components/admin/checkin-desk";
+@@ -73,6 +74,7 @@ function AdminSignIn() {
+   useReveal();
+   const [email, setEmail] = useState("");
+   const [pass, setPass] = useState("");
++  const [showPass, setShowPass] = useState(false);
+   const [busy, setBusy] = useState(false);
+   const [error, setError] = useState<string | null>(null);
+ 
+@@ -91,61 +93,106 @@ function AdminSignIn() {
+   }
+ 
+   return (
+-    <div className="grid min-h-screen place-items-center px-5">
++    <div className="relative grid min-h-screen place-items-center px-5 py-12 overflow-hidden bg-background">
++      {/* Background ambient lighting */}
++      <div className="absolute left-1/2 top-1/3 -translate-x-1/2 -translate-y-1/2 h-96 w-96 rounded-full bg-gold/5 blur-[120px] pointer-events-none" />
++
+       <div
+         data-reveal
+-        className="reveal w-full max-w-sm rounded-3xl border border-hairline bg-surface p-8"
++        className="reveal relative z-10 w-full max-w-md rounded-3xl border border-hairline/80 bg-surface/90 backdrop-blur-2xl p-8 sm:p-10 shadow-2xl"
+       >
+         <div className="mb-6 flex items-center gap-2 text-gold">
+           <ShieldCheck className="h-5 w-5" />
+-          <span className="text-sm font-medium uppercase tracking-[0.18em]">Organizer access</span>
++          <span className="text-xs font-bold uppercase tracking-[0.2em]">Authorized Access Only</span>
+         </div>
+-        <h1 className="font-display text-2xl font-bold tracking-tight">Sign in to the dashboard</h1>
+-        <p className="mt-2 text-sm text-muted-foreground">
+-          For organizers and check-in desk staff only.
++
++        <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">
++          Organizer Command
++        </h1>
++        <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
++          Sign in to manage delegations, scan passes, and operate the check-in desk for Sahasak
++          Naada &apos;26.
+         </p>
+-        <form onSubmit={submit} className="mt-6 flex flex-col gap-4">
++
++        <form onSubmit={submit} className="mt-8 flex flex-col gap-5">
+           <label className="flex flex-col gap-1.5">
+-            <span className="text-sm font-medium">Email</span>
+-            <input
+-              type="email"
+-              required
+-              autoComplete="username"
+-              value={email}
+-              onChange={(e) => setEmail(e.target.value)}
+-              className="rounded-lg border border-border bg-background px-3.5 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+-            />
++            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
++              Email Address
++            </span>
++            <div className="relative">
++              <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
++              <input
++                type="email"
++                required
++                autoComplete="username"
++                value={email}
++                onChange={(e) => setEmail(e.target.value)}
++                placeholder="organizer@dsse.edu"
++                className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-3.5 text-sm text-foreground focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30 transition"
++              />
++            </div>
+           </label>
++
+           <label className="flex flex-col gap-1.5">
+-            <span className="text-sm font-medium">Password</span>
+-            <input
+-              type="password"
+-              required
+-              autoComplete="current-password"
+-              value={pass}
+-              onChange={(e) => setPass(e.target.value)}
+-              className="rounded-lg border border-border bg-background px-3.5 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+-            />
++            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
++              Password
++            </span>
++            <div className="relative">
++              <Lock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
++              <input
++                type={showPass ? "text" : "password"}
++                required
++                autoComplete="current-password"
++                value={pass}
++                onChange={(e) => setPass(e.target.value)}
++                placeholder="••••••••••••"
++                className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-10 text-sm text-foreground focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30 transition"
++              />
++              <button
++                type="button"
++                onClick={() => setShowPass((s) => !s)}
++                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
++                title={showPass ? "Hide password" : "Show password"}
++              >
++                {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
++              </button>
++            </div>
+           </label>
++
+           {error && (
+-            <p role="alert" className="text-sm font-medium text-destructive-foreground">
++            <div
++              role="alert"
++              className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-xs font-medium text-destructive-foreground animate-in shake duration-200"
++            >
+               {error}
+-            </p>
++            </div>
+           )}
++
+           <Button
+             type="submit"
+             disabled={busy}
+-            className="mt-2 border border-gold/40 bg-primary text-primary-foreground hover:border-gold/70 hover:bg-secondary focus-visible:ring-gold"
++            className="mt-2 min-h-11 rounded-xl bg-gold font-bold text-black hover:brightness-110 active:scale-95 transition shadow-lg shadow-gold/20 cursor-pointer"
+           >
+-            {busy ? "Signing in…" : "Sign in"}
++            {busy ? (
++              <span className="flex items-center gap-2">
++                <Loader2 className="h-4 w-4 animate-spin text-black" />
++                Signing in…
++              </span>
++            ) : (
++              "Sign In to Dashboard"
++            )}
+           </Button>
+         </form>
+-        <Link
+-          to="/"
+-          className="mt-5 inline-block text-xs text-muted-foreground hover:text-foreground"
+-        >
+-          ← Back to the public site
+-        </Link>
++
++        <div className="mt-6 pt-6 border-t border-hairline/60 flex items-center justify-between text-xs">
++          <Link
++            to="/"
++            className="text-muted-foreground hover:text-gold transition font-medium"
++          >
++            ← Back to public site
++          </Link>
++          <span className="text-[11px] text-muted-foreground">Sahasak Naada &apos;26</span>
++        </div>
+       </div>
+     </div>
+   );
+@@ -154,7 +201,7 @@ function AdminSignIn() {
+ function NoAccess({ session }: { session: Session }) {
+   return (
+     <div className="grid min-h-screen place-items-center px-5">
+-      <div className="w-full max-w-md rounded-3xl border border-hairline bg-surface p-8">
++      <div className="w-full max-w-md rounded-3xl border border-hairline bg-surface p-8 shadow-2xl">
+         <h1 className="font-display text-2xl font-bold tracking-tight">No organizer access yet</h1>
+         <p className="mt-2 text-sm text-muted-foreground">
+           You&apos;re signed in as <strong className="text-foreground">{session.email}</strong>, but
+@@ -163,7 +210,7 @@ function NoAccess({ session }: { session: Session }) {
+         <p className="mt-3 break-all rounded-lg bg-background p-3 font-mono text-xs text-muted-foreground">
+           {session.userId}
+         </p>
+-        <Button onClick={() => void signOut()} variant="outline" className="mt-6">
++        <Button onClick={() => void signOut()} variant="outline" className="mt-6 rounded-xl">
+           Sign out
+         </Button>
+       </div>
+@@ -175,9 +222,11 @@ function AdminDashboard({ staff, onSignOut }: { staff: StaffProfile; onSignOut:
+   const [tab, setTab] = useState<Tab>("checkin");
+   const [schools, setSchools] = useState<School[]>([]);
+   const [loaded, setLoaded] = useState(false);
++  const [refreshing, setRefreshing] = useState(false);
+   const [error, setError] = useState<string | null>(null);
+ 
+   const refresh = useCallback(async () => {
++    setRefreshing(true);
+     try {
+       setSchools(await listSchools());
+       setError(null);
+@@ -185,6 +234,7 @@ function AdminDashboard({ staff, onSignOut }: { staff: StaffProfile; onSignOut:
+       setError(e instanceof Error ? e.message : "Couldn't load registrations.");
+     } finally {
+       setLoaded(true);
++      setRefreshing(false);
+     }
+   }, []);
+ 
+@@ -197,32 +247,71 @@ function AdminDashboard({ staff, onSignOut }: { staff: StaffProfile; onSignOut:
+     return () => clearInterval(t);
+   }, [refresh]);
+ 
++  const activeSchools = useMemo(() => schools.filter((s) => s.status !== "cancelled"), [schools]);
++  const allMembers = useMemo(() => flattenMembers(activeSchools), [activeSchools]);
++  const liveMembers = useMemo(
++    () => allMembers.filter((r) => memberStatus(r.member) !== "cancelled"),
++    [allMembers],
++  );
++  const arrivedCount = useMemo(
++    () => liveMembers.filter((r) => r.member.checked_in_at).length,
++    [liveMembers],
++  );
++
++  const tabCounts: TabCounts = useMemo(
++    () => ({
++      checkin: { arrived: arrivedCount, total: liveMembers.length },
++      schools: activeSchools.length,
++      registrations: liveMembers.length,
++    }),
++    [arrivedCount, liveMembers.length, activeSchools.length],
++  );
++
+   return (
+-    <div className="min-h-screen">
+-      <AdminTopBar staff={staff} onSignOut={onSignOut} />
+-      <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
+-        <Tabs tab={tab} setTab={setTab} isAdmin={staff.role === "admin"} />
++    <div className="min-h-screen bg-background">
++      <AdminTopBar
++        staff={staff}
++        onSignOut={onSignOut}
++        onRefresh={refresh}
++        isRefreshing={refreshing}
++      />
++      <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
++        <Tabs
++          tab={tab}
++          setTab={setTab}
++          isAdmin={staff.role === "admin"}
++          counts={tabCounts}
++        />
++
+         {error && (
+           <div
+             role="alert"
+-            className="mt-6 flex items-center justify-between gap-3 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm"
++            className="mt-6 flex items-center justify-between gap-3 rounded-2xl border border-destructive/40 bg-destructive/10 p-4 text-sm shadow-md"
+           >
+-            <span>{error}</span>
++            <span className="font-medium text-destructive-foreground">{error}</span>
+             <button
+               onClick={() => void refresh()}
+-              className="rounded-md border border-border px-3 py-1 text-xs font-medium hover:bg-background"
++              className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-semibold hover:border-gold/40 hover:text-gold transition cursor-pointer"
+             >
+               Retry
+             </button>
+           </div>
+         )}
++
+         <div className="mt-8">
+           {!loaded ? (
+-            <Loader2 className="mx-auto h-6 w-6 animate-spin text-gold" aria-label="Loading" />
++            <div className="flex flex-col items-center justify-center py-20 gap-3">
++              <Loader2 className="h-8 w-8 animate-spin text-gold" aria-label="Loading dashboard" />
++              <p className="text-xs text-muted-foreground font-mono">Synchronizing live data…</p>
++            </div>
+           ) : (
+             <>
+               {tab === "overview" && (
+-                <Overview schools={schools} isAdmin={staff.role === "admin"} />
++                <Overview
++                  schools={schools}
++                  isAdmin={staff.role === "admin"}
++                  onNavigateTab={(nextTab) => setTab(nextTab)}
++                />
+               )}
+               {tab === "schools" && (
+                 <Schools schools={schools} staff={staff} onChanged={() => void refresh()} />
+@@ -241,6 +330,14 @@ function AdminDashboard({ staff, onSignOut }: { staff: StaffProfile; onSignOut:
+             </>
+           )}
+         </div>
++
++        {/* Subtle, tiny THENUX watermark */}
++        <footer className="mt-16 border-t border-hairline/40 pt-6 pb-12 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground/60">
++          <p>© {new Date().getFullYear()} Sahasak Naada</p>
++          <span className="font-mono text-[9px] uppercase tracking-[0.25em] text-muted-foreground/25 select-none hover:text-muted-foreground/50 transition">
++            THENUX
++          </span>
++        </footer>
+       </div>
+     </div>
+   );
