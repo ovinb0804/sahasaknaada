@@ -4,6 +4,7 @@ import { BlurText } from "@/components/bits/blur-text";
 import { LiquidGlassButton } from "@/components/ui/liquid-glass-button";
 import { EVENT } from "@/lib/content";
 import { HeroLogo } from "@/components/home/hero-logo";
+import { HeroWaveform } from "@/components/home/hero-waveform";
 
 export function Hero() {
   return (
@@ -13,6 +14,10 @@ export function Hero() {
         className="ambient-gold pointer-events-none absolute inset-0 z-0 opacity-70"
         aria-hidden
       />
+      {/* subtle animated gold audio waveform */}
+      <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
+        <HeroWaveform />
+      </div>
 
       <div className="relative z-10 grid w-full gap-12 px-5 pb-20 pt-16 sm:px-8 lg:px-14 xl:px-20 md:grid-cols-[1.05fr_1fr] md:gap-10 md:pb-28 md:pt-24">
         {/* Left: copy */}

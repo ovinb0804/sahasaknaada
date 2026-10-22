@@ -3,6 +3,8 @@ import { BlurText } from "@/components/bits/blur-text";
 import { THEMES } from "@/lib/content";
 import { cn } from "@/lib/utils";
 
+const ALIGNS = ["left", "center", "right"] as const;
+
 /*
  * SOUND / SCIENCE / CREATIVITY — oversized editorial typography.
  *
@@ -22,15 +24,12 @@ export function Themes() {
 
         {/* Editorial animated typography with staggered composition */}
         <div className="flex flex-col gap-6 md:gap-10">
-          {THEMES.map((t) => (
+          {THEMES.map((t, i) => (
             <div
               key={t.word}
               data-reveal
-              style={{
-                marginLeft: `clamp(0rem, ${t.offset * 0.75}vw, ${t.offset}rem)`,
-              }}
               className={cn(
-                "reveal relative w-full max-w-[min(100%,50rem)]",
+                "reveal relative w-full",
                 t.emphasis === "gold" ? "text-gold" : "text-foreground",
               )}
             >
@@ -39,7 +38,7 @@ export function Themes() {
 
               {/* Responsive container for the canvas */}
               <div
-                className="relative h-28 w-full sm:h-36 md:h-44"
+                className="relative h-28 w-full sm:h-36 md:h-44 lg:h-52 xl:h-60"
                 style={{
                   color: t.emphasis === "gold" ? "#f5b921" : "#ffffff",
                 }}
@@ -68,7 +67,7 @@ export function Themes() {
                   selection
                   labels
                   color="currentColor"
-                  align="left"
+                  align={ALIGNS[i] ?? "center"}
                   draggable
                   sweep
                 />
