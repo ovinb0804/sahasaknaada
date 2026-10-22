@@ -39,6 +39,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PassCard } from "@/components/pass-card";
+import {
+  ScanButton,
+  ScanDialog,
+  SchoolArrivalPanel,
+  findSchoolByCode,
+} from "@/components/admin/school-arrival";
 
 type Banner = { tone: "success" | "warn" | "error"; text: string };
 type FilterMode = "all" | "pending" | "arrived" | "attention";
@@ -96,6 +102,19 @@ export function CheckInDesk({ schools, onChanged }: { schools: School[]; onChang
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [previewPass, setPreviewPass] = useState<MemberRow | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [activeSchoolId, setActiveSchoolId] = useState<string | null>(null);
+  const [scanOpen, setScanOpen] = useState(false);
+  const activeSchool = schools.find((s) => s.id === activeSchoolId) ?? null;
+
+  /** A scanned QR / typed code that matches a school opens its arrival list. */
+  function openSchoolFromInput(raw: string): boolean {
+    const school = findSchoolByCode(schools, raw);
+    if (!school) return false;
+    setActiveSchoolId(school.id);
+    setBanner(null);
+    setQ("");
+    return true;
+  }
 
   const all = useMemo(() => flattenMembers(schools), [schools]);
   const live = all.filter((r) => memberStatus(r.member) !== "cancelled");
@@ -212,7 +231,7 @@ export function CheckInDesk({ schools, onChanged }: { schools: School[]; onChang
             <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            Scan attendee QR code or type reference / school code to confirm attendance.
+            Scan a school's QR or enter its code to tick off its members, or search for a single person.
           </p>
         </div>
 
@@ -245,6 +264,37 @@ export function CheckInDesk({ schools, onChanged }: { schools: School[]; onChang
         </div>
       </div>
 
+      {/* School QR scan */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <ScanButton onClick={() => setScanOpen(true)} />
+        <p className="text-xs text-muted-foreground">
+          Or type the school's 6-character code below and press Enter. Handheld scanners work too.
+        </p>
+      </div>
+
+      {activeSchool && (
+        <SchoolArrivalPanel
+          school={activeSchool}
+          onClose={() => {
+            setActiveSchoolId(null);
+            inputRef.current?.focus();
+          }}
+          onChanged={onChanged}
+          onChime={() => soundEnabled && playSuccessChime()}
+        />
+      )}
+
+      <ScanDialog
+        open={scanOpen}
+        onClose={() => setScanOpen(false)}
+        onResult={(text) => {
+          setScanOpen(false);
+          if (!openSchoolFromInput(text)) {
+            setBanner({ tone: "error", text: "That QR code isn't a registered school code." });
+          }
+        }}
+      />
+
       {/* Main Scanner Search Bar */}
       <div className="relative">
         <label className="relative block">
@@ -266,6 +316,10 @@ export function CheckInDesk({ schools, onChanged }: { schools: School[]; onChang
               if (e.key !== "Enter") return;
               const typed = q.trim().toLowerCase();
               if (!typed) return;
+              if (openSchoolFromInput(q)) {
+                e.preventDefault();
+                return;
+              }
               const exact = all.filter(
                 (r) =>
                   r.member.pass_code.toLowerCase() === typed ||
@@ -277,7 +331,7 @@ export function CheckInDesk({ schools, onChanged }: { schools: School[]; onChang
                 void checkIn(only);
               }
             }}
-            placeholder="Scan pass QR code or type reference (e.g. SSA-0007), name, school code…"
+            placeholder="Type or scan a school code, or find a person by name or reference (SSA-0007)…"
             className="w-full rounded-2xl border border-hairline/80 bg-surface/90 py-4 pl-12 pr-28 text-base sm:text-lg text-foreground placeholder:text-muted-foreground focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30 shadow-xl transition"
           />
         </label>

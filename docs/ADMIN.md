@@ -20,7 +20,8 @@ values ('<user-uuid>', 'Desk 1', 'desk');   -- or 'admin'
 To remove access: `delete from public.staff where user_id = '<user-uuid>';`
 
 ## Event day
-- **Check-in** tab: type a name, a reference (`SSA-0007` or `7`), a school name or a school code, then press **Check in**. Scanning a printed pass QR checks the person in straight away.
+- **Check-in** tab, school first: the school shows its QR (or its 6-character code). Tap **Scan school QR** (needs a browser with camera QR support, such as Chrome) or type the code / use a handheld scanner and press Enter. The school's member list opens; tick each person as they arrive, or press **Check in all remaining**. Unticking undoes a check-in.
+- Late arrivals: leave the school's list open and tick them later, or search for the person on their own (name, reference such as `SSA-0007` or `7`, school name, or pass code, then **Check in**). Scanning a printed pass QR also checks one person in.
 - Entry passes can be printed from **Schools → open a school → Pass / All passes**.
 - Cancelled members can't be checked in. Repeat check-ins are safe (shown as "Already checked in").
 
