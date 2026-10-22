@@ -331,17 +331,12 @@ function AdminDashboard({ staff, onSignOut }: { staff: StaffProfile; onSignOut: 
           )}
         </div>
 
-        {/* Bottom THENUX watermark footer */}
-        <footer className="mt-16 border-t border-hairline/60 pt-6 pb-12 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
-          <p>© {new Date().getFullYear()} Sahasak Naada • All Rights Reserved</p>
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
-              Designed &amp; Developed by
-            </span>
-            <span className="font-display text-xs font-black tracking-widest text-gold bg-gold/10 border border-gold/30 px-2.5 py-0.5 rounded-md shadow-[0_0_12px_rgba(245,185,33,0.18)] select-none">
-              THENUX
-            </span>
-          </div>
+        {/* Subtle, tiny THENUX watermark */}
+        <footer className="mt-16 border-t border-hairline/40 pt-6 pb-12 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground/60">
+          <p>© {new Date().getFullYear()} Sahasak Naada</p>
+          <span className="font-mono text-[9px] uppercase tracking-[0.25em] text-muted-foreground/25 select-none hover:text-muted-foreground/50 transition">
+            THENUX
+          </span>
         </footer>
       </div>
     </div>

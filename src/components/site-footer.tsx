@@ -51,14 +51,9 @@ export function SiteFooter() {
           <p>
             © {year} {EVENT.host}.
           </p>
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
-              Designed &amp; Developed by
-            </span>
-            <span className="font-display text-xs font-black tracking-widest text-gold bg-gold/10 border border-gold/30 px-2.5 py-0.5 rounded-md shadow-[0_0_12px_rgba(245,185,33,0.18)] select-none">
-              THENUX
-            </span>
-          </div>
+          <span className="font-mono text-[9px] uppercase tracking-[0.25em] text-muted-foreground/25 select-none hover:text-muted-foreground/50 transition">
+            THENUX
+          </span>
           <Link
             to="/admin"
             className="rounded-md px-2 py-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
