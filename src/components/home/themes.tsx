@@ -28,8 +28,9 @@ export function Themes() {
             <div
               key={t.word}
               data-reveal
+              style={{ transitionDelay: `${i * 140}ms` }}
               className={cn(
-                "reveal relative w-full",
+                "reveal reveal-left relative w-full",
                 t.emphasis === "gold" ? "text-gold" : "text-foreground",
               )}
             >

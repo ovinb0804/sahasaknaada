@@ -170,6 +170,14 @@
     }
   }
 
+  /* Slide-in from the left (pillars) — must precede .is-visible */
+  .reveal.reveal-left {
+    transform: translateX(-6rem);
+    transition:
+      opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
   /*
    * Safety: if JS has not executed yet, or for SSR prerender, or before
    * IntersectionObserver fires, elements marked .reveal should not stay

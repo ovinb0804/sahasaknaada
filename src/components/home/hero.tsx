@@ -8,13 +8,13 @@ import { HeroLogo } from "@/components/home/hero-logo";
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden border-b border-hairline">
+    <section className="relative -mt-16 overflow-hidden border-b border-hairline">
       {/* DarkVeil shader background */}
       <div className="pointer-events-none absolute inset-0 z-0 h-full w-full" aria-hidden>
         <DarkVeil className="h-full w-full" color="#b4b4c4" glow={0.2} />
       </div>
 
-      <div className="relative z-10 grid w-full gap-12 px-5 pb-20 pt-16 sm:px-8 lg:px-14 xl:px-20 md:grid-cols-[1.05fr_1fr] md:gap-10 md:pb-28 md:pt-24">
+      <div className="relative z-10 grid w-full gap-12 px-5 pb-20 pt-32 sm:px-8 lg:px-14 xl:px-20 md:grid-cols-[1.05fr_1fr] md:gap-10 md:pb-28 md:pt-40">
         {/* Left: copy */}
         <div className="flex flex-col justify-center">
           <p data-reveal className="text-xs font-medium uppercase tracking-[0.22em] text-gold">

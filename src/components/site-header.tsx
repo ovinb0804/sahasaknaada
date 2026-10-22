@@ -36,7 +36,7 @@ export function SiteHeader() {
         exponential
         opacity={1}
         saturation={1.1}
-        tint="rgba(7, 8, 10, 0.88)"
+        tint="rgba(7, 8, 10, 0.35)"
         zIndex={0}
       />
 
