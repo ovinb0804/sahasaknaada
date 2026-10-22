@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 
+import DarkVeil from "@/components/bits/dark-veil";
 import { BlurText } from "@/components/bits/blur-text";
 import { LiquidGlassButton } from "@/components/ui/liquid-glass-button";
 import { EVENT } from "@/lib/content";
@@ -9,11 +10,10 @@ import { HeroWaveform } from "@/components/home/hero-waveform";
 export function Hero() {
   return (
     <section className="relative overflow-hidden border-b border-hairline">
-      {/* subtle warm ambient bloom, kept away from body copy */}
-      <div
-        className="ambient-gold pointer-events-none absolute inset-0 z-0 opacity-70"
-        aria-hidden
-      />
+      {/* DarkVeil shader background */}
+      <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
+        <DarkVeil color="#b4b4c4" glow={0.2} />
+      </div>
       {/* subtle animated gold audio waveform */}
       <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
         <HeroWaveform />
