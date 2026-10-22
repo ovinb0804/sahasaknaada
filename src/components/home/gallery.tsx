@@ -13,9 +13,9 @@ function useWallLayout() {
     window.addEventListener("resize", on);
     return () => window.removeEventListener("resize", on);
   }, []);
-  if (w < 640) return { columns: 3, tileWidth: 150, tileHeight: 104, gap: 12, height: 480 };
-  if (w < 1024) return { columns: 4, tileWidth: 190, tileHeight: 128, gap: 16, height: 560 };
-  return { columns: 6, tileWidth: 240, tileHeight: 160, gap: 18, height: 640 };
+  if (w < 640) return { columns: 3, tileWidth: 150, tileHeight: 104, gap: 12 };
+  if (w < 1024) return { columns: 4, tileWidth: 190, tileHeight: 128, gap: 16 };
+  return { columns: 6, tileWidth: 240, tileHeight: 160, gap: 18 };
 }
 
 /**
@@ -32,8 +32,8 @@ export function Gallery() {
   return (
     <section
       id="gallery"
-      className="relative overflow-hidden border-b border-hairline"
-      style={{ scrollMarginTop: "5.5rem" }}
+      className="relative flex flex-col overflow-hidden border-b border-hairline"
+      style={{ scrollMarginTop: "5.5rem", height: "100svh", minHeight: "36rem" }}
     >
       <div className="relative z-10 w-full px-5 pt-20 sm:px-8 lg:px-14 xl:px-20 md:pt-24">
         <div className="flex flex-col items-center text-center">
@@ -57,7 +57,7 @@ export function Gallery() {
         </div>
       </div>
 
-      <div className="relative w-full" style={{ height: layout.height }}>
+      <div className="relative min-h-0 w-full flex-1">
         <DriftWall
           items={items}
           columns={layout.columns}
@@ -71,7 +71,7 @@ export function Gallery() {
           speed={42}
           direction="up"
           variance={0.45}
-          parallax={0.6}
+          parallax={0}
           lift={44}
           fade={0.6}
           dim={0.55}
