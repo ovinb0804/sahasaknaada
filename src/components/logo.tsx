@@ -8,40 +8,30 @@ import { EVENT } from "@/lib/content";
  * official school crest. Replace the mark with the supplied approved logo
  * asset when provided (see src/lib/content.ts → EVENT).
  */
-export function Logo({ className, onDark = true }: { className?: string; onDark?: boolean }) {
+export function Logo({ className }: { className?: string; onDark?: boolean }) {
   return (
     <Link
       to="/"
       aria-label={`${EVENT.name} — home`}
       className={cn(
-        "group inline-flex items-center gap-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background",
+        "inline-flex items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background",
         className,
       )}
     >
-      <span
-        aria-hidden
-        className={cn(
-          "grid h-10 w-10 place-items-center overflow-hidden rounded-xl border p-1 transition-colors",
-          onDark
-            ? "border-border bg-surface text-gold"
-            : "border-black/10 bg-black/5 text-gold-deep",
-        )}
-      >
-        <img src={EVENT.logoUrl} alt="" className="h-full w-full object-contain" />
-      </span>
-      <span className="flex flex-col leading-none">
-        <span
-          className={cn(
-            "font-display text-base font-bold tracking-tight transition-colors group-hover:text-gold",
-            onDark ? "text-white" : "text-foreground",
-          )}
-        >
-          {EVENT.name}
-        </span>
-        <span className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.18em] text-white/70">
-          {EVENT.tagline}
-        </span>
-      </span>
+      <img
+        src="/logos/reads.png"
+        alt="READS logo"
+        width={512}
+        height={512}
+        className="h-11 w-11 object-contain sm:h-12 sm:w-12"
+      />
+      <img
+        src="/logos/school.png"
+        alt="D. S. Senanayake College crest"
+        width={512}
+        height={557}
+        className="h-11 w-auto object-contain sm:h-12"
+      />
     </Link>
   );
 }
