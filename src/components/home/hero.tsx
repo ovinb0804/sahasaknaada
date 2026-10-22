@@ -10,7 +10,12 @@ export function Hero() {
   return (
     <section className="relative -mt-16 overflow-hidden border-b border-hairline">
       {/* DarkVeil shader background */}
-      <div className="pointer-events-none absolute inset-0 z-0 h-full w-full" aria-hidden>
+      {/* The veil is shaped by its height, so on tall, narrow phones it gets stretched.
+          Cap its height relative to the width and fade the bottom edge instead. */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 z-0 h-full max-h-[135vw] w-full max-md:[mask-image:linear-gradient(to_bottom,#000_65%,transparent)] max-md:[-webkit-mask-image:linear-gradient(to_bottom,#000_65%,transparent)]"
+        aria-hidden
+      >
         <DarkVeil className="h-full w-full" color="#b4b4c4" glow={0.2} />
       </div>
 
