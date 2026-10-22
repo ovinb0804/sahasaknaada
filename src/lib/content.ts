@@ -32,6 +32,7 @@ export const NAV_SECTIONS: NavSection[] = [
   { label: "Themes", href: "/#themes" },
   { label: "Gallery", href: "/#gallery" },
   { label: "Agenda", href: "/#agenda" },
+  { label: "Team", href: "/#team" },
   { label: "FAQ", href: "/#faq" },
 ];
 
@@ -192,3 +193,12 @@ export const REG_FIELDS: FieldDef[] = [
     maxLength: 300,
   },
 ];
+
+/** The team behind the workshop (top board photo). Replace the file in public/team to update it. */
+export const TEAM = {
+  photoUrl: "/team/top-board.jpg",
+  width: 2000,
+  height: 1500,
+  alt: "The top board of The Radio Electronics Association of D. S. Senanayake College in school blazers, standing and seated in front of a statue in the school grounds",
+  caption: "The top board of The Radio Electronics Association of D. S. Senanayake College",
+};

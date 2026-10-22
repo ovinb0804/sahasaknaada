@@ -7,6 +7,7 @@ import { Themes } from "@/components/home/themes";
 import { Gallery } from "@/components/home/gallery";
 import { GalleryCta } from "@/components/home/gallery-cta";
 import { Agenda } from "@/components/home/agenda";
+import { Team } from "@/components/home/team";
 import { RegisterCtaBand } from "@/components/home/register-cta-band";
 import { Faq } from "@/components/home/faq";
 import { useReveal } from "@/hooks/use-reveal";
@@ -54,6 +55,7 @@ function Index() {
         <Gallery />
         <GalleryCta />
         <Agenda />
+        <Team />
         <RegisterCtaBand />
         <Faq />
       </main>
