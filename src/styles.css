@@ -837,3 +837,188 @@
     0 4px 10px -2px rgba(0, 0, 0, 0.4);
 }
 
+
+/* ───────────── Preloader (LoadingScreen) ───────────── */
+.pl-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #07080a;
+  opacity: 1;
+  transform: scale(1);
+  transition:
+    opacity var(--pl-exit, 900ms) cubic-bezier(0.65, 0, 0.35, 1),
+    transform var(--pl-exit, 900ms) cubic-bezier(0.65, 0, 0.35, 1);
+  will-change: opacity, transform;
+}
+.pl-overlay[data-phase="hide"] {
+  opacity: 0;
+  transform: scale(1.06);
+  pointer-events: none;
+}
+
+.pl-bloom {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: min(120vw, 1100px);
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(245, 185, 33, 0.22), rgba(245, 185, 33, 0.07) 55%, transparent 100%);
+  opacity: 0;
+  scale: 0.6;
+  animation: pl-bloom 2.2s 0.15s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.pl-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(1.25rem, 3.5vh, 2rem);
+  width: 100%;
+  padding: 0 1.25rem;
+}
+
+/* Logo: soft wipe reveal, blur → sharp, small rise, then a slow breathe */
+.pl-logo {
+  position: relative;
+  width: min(80vw, 640px);
+  aspect-ratio: 1400 / 834;
+  animation: pl-breathe 4s 2s ease-in-out infinite alternate;
+}
+.pl-logo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+  filter: blur(14px);
+  transform: translateY(14px);
+  -webkit-mask-image: linear-gradient(90deg, #000 42%, transparent 58%);
+  mask-image: linear-gradient(90deg, #000 42%, transparent 58%);
+  -webkit-mask-size: 260% 100%;
+  mask-size: 260% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: 100% 0;
+  mask-position: 100% 0;
+  animation:
+    pl-wipe 1.7s 0.35s cubic-bezier(0.65, 0, 0.35, 1) forwards,
+    pl-focus 1.7s 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Gold light that sweeps across the lettering only (masked by the logo itself) */
+.pl-shine {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 38%, rgba(255, 226, 130, 0.95) 50%, transparent 62%) no-repeat;
+  background-size: 260% 100%;
+  background-position: 130% 0;
+  -webkit-mask-image: var(--pl-src);
+  mask-image: var(--pl-src);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: pl-shine 1.5s 1.9s cubic-bezier(0.45, 0, 0.2, 1) forwards;
+}
+
+.pl-bar {
+  position: relative;
+  width: min(56vw, 240px);
+  height: 2px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.1);
+  opacity: 0;
+  animation: pl-fade-in 0.6s 0.9s ease forwards;
+}
+.pl-bar-fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  transform: scaleX(0);
+  background: linear-gradient(90deg, #b8860b, #f5b921 60%, #ffe28a);
+  animation: pl-progress calc(var(--pl-hold, 3000ms) - 0.9s) 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.pl-host {
+  margin: 0;
+  max-width: 28rem;
+  text-align: center;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+  opacity: 0;
+  transform: translateY(6px);
+  animation: pl-rise 0.9s 1.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes pl-wipe {
+  to {
+    -webkit-mask-position: 0% 0;
+    mask-position: 0% 0;
+  }
+}
+@keyframes pl-focus {
+  to {
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+@keyframes pl-bloom {
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+@keyframes pl-shine {
+  0% {
+    opacity: 1;
+    background-position: 130% 0;
+  }
+  100% {
+    opacity: 1;
+    background-position: -30% 0;
+  }
+}
+@keyframes pl-progress {
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes pl-fade-in {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes pl-rise {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes pl-breathe {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.025);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pl-overlay {
+    display: none;
+  }
+}

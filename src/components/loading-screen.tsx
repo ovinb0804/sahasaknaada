@@ -3,52 +3,78 @@ import { useEffect, useState } from "react";
 import { EVENT } from "@/lib/content";
 
 /*
- * LoadingScreen — premium intro overlay shown once on first app load.
+ * LoadingScreen — branded preloader shown once per browser session.
  *
- * Dark canvas, the approved Sahasak Naada logo as the visual anchor with a
- * soft warm-gold ambient bloom, the wordmark + tagline, and a restrained
- * sound-waveform "loading" indicator. Fades out cleanly after the assets /
- * page have had time to settle, then unmounts so it never blocks the UI.
+ * Near-black canvas. The Sahasak Naada logo is revealed with a soft left-to-right
+ * wipe (blur-to-sharp, slight rise), a gold light sweeps across the lettering,
+ * and a thin gold progress line fills beneath it. After the hold, the whole
+ * screen eases out (fade + gentle zoom) and unmounts so it never blocks the UI.
  *
- * Shows once per browser session (sessionStorage) so reloads during
- * development / navigation don't replay it. Reduced-motion safe: the
- * waveform is static and the overlay dismisses immediately.
+ * It rendered on the server too, so the page never flashes before it appears.
+ * Skipped for reduced-motion users and on repeat visits in the same session.
+ * If the page is still loading when the hold ends, it waits (up to a cap).
  */
-const STORAGE_KEY = "sahasaknaada-intro-seen";
-const HOLD_MS = 1900;
-const FADE_MS = 700;
+const STORAGE_KEY = "sahasaknaada-preloader-seen";
+const HOLD_MS = 3000; // time on screen before the exit starts
+const MAX_WAIT_MS = 2500; // extra time allowed for a slow page load
+const EXIT_MS = 900;
+
+export const PRELOADER_LOGO = "/logos/sahasak-naada.png";
 
 export function LoadingScreen() {
   const [phase, setPhase] = useState<"show" | "hide" | "done">("show");
 
   useEffect(() => {
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-    if (reduce) {
+    let seen = false;
+    try {
+      seen = Boolean(sessionStorage.getItem(STORAGE_KEY));
+    } catch {
+      /* sessionStorage may be unavailable */
+    }
+    if (reduce || seen) {
       setPhase("done");
       return;
     }
-    try {
-      if (sessionStorage.getItem(STORAGE_KEY)) {
-        setPhase("done");
-        return;
-      }
-    } catch {
-      /* ignore — sessionStorage may be unavailable */
-    }
 
-    const fadeTimer = window.setTimeout(() => setPhase("hide"), HOLD_MS);
-    const doneTimer = window.setTimeout(() => {
-      setPhase("done");
-      try {
-        sessionStorage.setItem(STORAGE_KEY, "1");
-      } catch {
-        /* ignore */
-      }
-    }, HOLD_MS + FADE_MS);
+    const root = document.documentElement;
+    const prevOverflow = root.style.overflow;
+    root.style.overflow = "hidden";
+
+    const timers: number[] = [];
+    let exited = false;
+    const exit = () => {
+      if (exited) return;
+      exited = true;
+      root.style.overflow = prevOverflow;
+      setPhase("hide");
+      timers.push(
+        window.setTimeout(() => {
+          setPhase("done");
+          try {
+            sessionStorage.setItem(STORAGE_KEY, "1");
+          } catch {
+            /* ignore */
+          }
+        }, EXIT_MS),
+      );
+    };
+
+    timers.push(
+      window.setTimeout(() => {
+        if (document.readyState === "complete") {
+          exit();
+        } else {
+          window.addEventListener("load", exit, { once: true });
+          timers.push(window.setTimeout(exit, MAX_WAIT_MS));
+        }
+      }, HOLD_MS),
+    );
 
     return () => {
-      window.clearTimeout(fadeTimer);
-      window.clearTimeout(doneTimer);
+      timers.forEach((t) => window.clearTimeout(t));
+      window.removeEventListener("load", exit);
+      root.style.overflow = prevOverflow;
     };
   }, []);
 
@@ -56,45 +82,35 @@ export function LoadingScreen() {
 
   return (
     <div
-      aria-hidden
-      className="intro-overlay"
+      className="pl-overlay"
       data-phase={phase}
-      style={{ transitionDuration: `${FADE_MS}ms` }}
+      role="status"
+      aria-live="polite"
+      aria-label={`${EVENT.name} is loading`}
+      style={{ ["--pl-hold" as string]: `${HOLD_MS}ms`, ["--pl-exit" as string]: `${EXIT_MS}ms` }}
     >
-      {/* Ambient warm-gold bloom behind the logo */}
-      <div className="intro-bloom" aria-hidden />
+      <div className="pl-bloom" aria-hidden />
 
-      <div className="intro-stage">
-        {/* Large, attractive logo anchor with animated halo + ring */}
-        <div className="intro-logo-wrap">
-          <div className="intro-halo" aria-hidden />
-          <div className="intro-ring" aria-hidden />
-          <img src={EVENT.logoUrl} alt={EVENT.name} className="intro-logo" draggable={false} />
+      <div className="pl-stage">
+        <div className="pl-logo" style={{ ["--pl-src" as string]: `url(${PRELOADER_LOGO})` }}>
+          <img
+            src={PRELOADER_LOGO}
+            alt=""
+            width={1400}
+            height={834}
+            draggable={false}
+            decoding="async"
+            fetchPriority="high"
+          />
+          <span className="pl-shine" aria-hidden />
         </div>
 
-        {/* Wordmark + tagline */}
-        <div className="intro-words">
-          <span className="intro-name">{EVENT.name}</span>
-          <span className="intro-tag">{EVENT.tagline}</span>
+        <div className="pl-bar" aria-hidden>
+          <span className="pl-bar-fill" />
         </div>
 
-        {/* Sound-waveform loading indicator */}
-        <div className="intro-wave" role="presentation">
-          {WAVE.map((h, i) => (
-            <span
-              key={i}
-              className="intro-bar"
-              style={{
-                animationDelay: `${i * 90}ms`,
-                animationDuration: `${900 + (i % 3) * 180}ms`,
-                height: `${h}%`,
-              }}
-            />
-          ))}
-        </div>
+        <p className="pl-host">{EVENT.host}</p>
       </div>
     </div>
   );
 }
-
-const WAVE = [38, 64, 92, 72, 100, 56, 80, 44];
