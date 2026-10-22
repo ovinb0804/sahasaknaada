@@ -54,6 +54,8 @@ export function useReveal<T extends HTMLElement = HTMLElement>(selector = "[data
     };
 
     scan();
+    // The hook is live: disable the CSS no-JS fallback so entrances can play.
+    document.documentElement.classList.add("reveal-ready");
 
     let mo: MutationObserver | null = null;
     if (typeof MutationObserver !== "undefined") {

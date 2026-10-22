@@ -108,7 +108,7 @@ export function Hero() {
 
           <p
             data-reveal
-            className="reveal reveal-fly reveal-d2 mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground text-pretty"
+            className="reveal reveal-fly reveal-d2 mt-6 max-w-xl text-lg leading-relaxed text-white/90 text-pretty"
           >
             {EVENT.heroCopy}
           </p>

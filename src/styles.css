@@ -160,6 +160,15 @@
       opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
       transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
     will-change: opacity, transform;
+  }
+
+  /*
+   * No-JS / pre-hydration safety only: reveal everything after a moment.
+   * Once the reveal hook is running (html.reveal-ready) this must not apply,
+   * otherwise it force-shows below-the-fold elements before they scroll in and
+   * their entrance animation never plays.
+   */
+  html:not(.reveal-ready) .reveal {
     animation: reveal-fallback 0.5s ease 1.2s forwards;
   }
 
