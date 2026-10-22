@@ -29,10 +29,10 @@ export const EVENT = {
 };
 
 export const NAV_SECTIONS: NavSection[] = [
-  { label: "Themes", href: "/#themes" },
   { label: "Gallery", href: "/#gallery" },
-  { label: "Agenda", href: "/#agenda" },
   { label: "Team", href: "/#team" },
+  { label: "Themes", href: "/#themes" },
+  { label: "Agenda", href: "/#agenda" },
   { label: "FAQ", href: "/#faq" },
 ];
 

@@ -50,11 +50,11 @@ function Index() {
       <SiteHeader />
       <main>
         <Hero />
-        <Themes />
         <Gallery />
-        <Agenda />
         <Team />
+        <Themes />
         <RegisterCtaBand />
+        <Agenda />
         <Faq />
       </main>
       <SiteFooter />
