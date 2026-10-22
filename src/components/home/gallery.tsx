@@ -1,16 +1,33 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { DotGrid } from "@/components/bits/dot-grid";
+import DriftWall from "@/components/bits/drift-wall";
 import { BlurText } from "@/components/bits/blur-text";
 import { GALLERY } from "@/lib/content";
-import { cn } from "@/lib/utils";
+
+/** Wall geometry per screen width (set after mount so SSR markup matches). */
+function useWallLayout() {
+  const [w, setW] = useState(1280);
+  useEffect(() => {
+    const on = () => setW(window.innerWidth);
+    on();
+    window.addEventListener("resize", on);
+    return () => window.removeEventListener("resize", on);
+  }, []);
+  if (w < 640) return { columns: 3, tileWidth: 150, tileHeight: 104, gap: 12, height: 480 };
+  if (w < 1024) return { columns: 4, tileWidth: 190, tileHeight: 128, gap: 16, height: 560 };
+  return { columns: 6, tileWidth: 240, tileHeight: 160, gap: 18, height: 640 };
+}
 
 /**
- * Intra-school gallery: a native scroll-snap row of previous intra-school
- * workshop photos (the WebGL FlexCarousel was removed).
+ * Previous workshop photos on a React Bits DriftWall: columns of tiles that
+ * drift in alternating directions. Replaces the old scroll-snap carousel.
  */
 export function Gallery() {
-  const [active, setActive] = useState(0);
+  const layout = useWallLayout();
+  const items = useMemo(
+    () => GALLERY.filter((g) => g.src).map((g) => ({ image: g.src as string, title: g.alt })),
+    [],
+  );
 
   return (
     <section
@@ -18,28 +35,8 @@ export function Gallery() {
       className="relative overflow-hidden border-b border-hairline"
       style={{ scrollMarginTop: "5.5rem" }}
     >
-      {/* Ambient dot-grid background — subtle, restrained, reduced-motion safe */}
-      <DotGrid
-        className="pointer-events-none absolute inset-0 z-0"
-        baseColor="#3c3c46"
-        activeColor="#f5b921"
-        dotSize={4}
-        gap={24}
-        proximity={150}
-        strength={1}
-        swell={0.8}
-        stretch={0.5}
-        glow={0.55}
-        opacity={0.9}
-        intro
-        mouseInteraction
-      />
-      <div
-        className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-b from-background/40 via-background/10 to-background/60"
-        aria-hidden
-      />
-      <div className="relative z-10 w-full px-5 py-20 sm:px-8 lg:px-14 xl:px-20 md:py-24">
-        <div className="mb-10 flex flex-col items-center text-center">
+      <div className="relative z-10 w-full px-5 pt-20 sm:px-8 lg:px-14 xl:px-20 md:pt-24">
+        <div className="flex flex-col items-center text-center">
           <p className="text-xs font-medium uppercase tracking-[0.28em] text-gold">Intra-school</p>
           <h2 className="mt-4 font-display text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
             <BlurText
@@ -55,143 +52,32 @@ export function Gallery() {
             />
           </h2>
           <p className="mt-3 max-w-md text-sm text-muted-foreground">
-            Moments from our previous intra-school workshops at D. S. Senanayake College.
+            Moments from our previous workshops at D. S. Senanayake College.
           </p>
         </div>
+      </div>
 
-        <div className="relative">
-          <FlexCarouselLayer
-            items={GALLERY.map((g) => ({
-              src: g.src ?? "",
-              alt: g.alt,
-              title: g.title,
-              subtitle: g.caption,
-            }))}
-            onActive={setActive}
-          />
-        </div>
-
-        {/* Dot indicators / controls */}
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-          {GALLERY.map((g, i) => (
-            <button
-              key={g.id}
-              type="button"
-              aria-label={`Show photo: ${g.title}`}
-              aria-pressed={active === i}
-              onClick={() => {
-                setActive(i);
-                const root = document.getElementById("gallery-carousel-root");
-                root?.dispatchEvent(new CustomEvent("gallery:goto", { detail: i }));
-              }}
-              className={cn(
-                "h-2.5 rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                active === i
-                  ? "w-7 bg-gold"
-                  : "w-2.5 bg-muted-foreground/40 hover:bg-muted-foreground/70",
-              )}
-            />
-          ))}
-        </div>
+      <div className="relative w-full" style={{ height: layout.height }}>
+        <DriftWall
+          items={items}
+          columns={layout.columns}
+          tileWidth={layout.tileWidth}
+          tileHeight={layout.tileHeight}
+          gap={layout.gap}
+          tilt={0}
+          turn={3}
+          perspective={1200}
+          depth={120}
+          speed={42}
+          direction="up"
+          variance={0.45}
+          parallax={0.6}
+          lift={44}
+          fade={0.6}
+          dim={0.55}
+          overlayColor="#060010"
+        />
       </div>
     </section>
-  );
-}
-
-function FlexCarouselLayer({
-  items,
-  onActive,
-}: {
-  items: { src: string; alt: string; title: string; subtitle?: string }[];
-  onActive: (i: number) => void;
-}) {
-  const rootRef = useRef<HTMLDivElement>(null);
-  return (
-    <div
-      id="gallery-carousel-root"
-      ref={rootRef}
-      className="relative w-full overflow-hidden rounded-3xl border border-hairline bg-surface/40"
-    >
-      <FallbackScroller items={items} onActive={onActive} rootRef={rootRef} />
-    </div>
-  );
-}
-
-function FallbackScroller({
-  items,
-  onActive,
-  rootRef,
-}: {
-  items: { src: string; alt: string; title: string; subtitle?: string }[];
-  onActive: (i: number) => void;
-  rootRef: React.RefObject<HTMLDivElement | null>;
-}) {
-  const scroller = useRef<HTMLDivElement>(null);
-
-  // Listen for goto requests from the dot indicators.
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
-    const handler = (e: Event) => {
-      const idx = Number((e as CustomEvent).detail);
-      const el = scroller.current?.querySelectorAll("[data-gallery-card]")?.[idx] as
-        | HTMLElement
-        | undefined;
-      el?.scrollIntoView({ behavior: "auto", inline: "center", block: "nearest" });
-    };
-    root.addEventListener("gallery:goto", handler);
-    return () => root.removeEventListener("gallery:goto", handler);
-  }, [rootRef]);
-
-  return (
-    <div
-      ref={scroller}
-      role="group"
-      aria-label="Intra-school workshop gallery"
-      tabIndex={0}
-      className={cn(
-        "flex snap-x snap-mandatory gap-3 overflow-x-auto p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        "[scrollbar-width:thin] [scrollbar-color:var(--color-hairline)_transparent]",
-      )}
-      onScroll={() => {
-        const sc = scroller.current;
-        if (!sc) return;
-        const els = sc.querySelectorAll("[data-gallery-card]");
-        if (!els.length) return;
-        const center = sc.scrollLeft + sc.clientWidth / 2;
-        let best = 0;
-        let bestDist = Infinity;
-        els.forEach((el, i) => {
-          const mid = (el as HTMLElement).offsetLeft + (el as HTMLElement).clientWidth / 2;
-          const d = Math.abs(mid - center);
-          if (d < bestDist) {
-            bestDist = d;
-            best = i;
-          }
-        });
-        onActive(best);
-      }}
-      style={{ height: "clamp(20rem,56vh,34rem)" }}
-    >
-      {items.map((item, i) => (
-        <figure
-          key={i}
-          data-gallery-card=""
-          className="relative flex h-full w-[82vw] shrink-0 snap-center overflow-hidden rounded-2xl border border-hairline bg-card sm:w-[60vw] md:w-[26rem]"
-          aria-label={item.title}
-        >
-          <img
-            src={item.src}
-            alt={item.alt}
-            loading="lazy"
-            className="h-full w-full object-cover"
-          />
-          <figcaption className="absolute inset-x-0 bottom-0 flex flex-col gap-1 bg-gradient-to-t from-black/85 to-transparent p-4 pt-12">
-            <span className="text-sm font-semibold text-foreground">{item.title}</span>
-            <span className="text-xs text-muted-foreground">{item.subtitle}</span>
-          </figcaption>
-        </figure>
-      ))}
-    </div>
   );
 }

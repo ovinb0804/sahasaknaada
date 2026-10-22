@@ -70,11 +70,25 @@ export const GALLERY: GalleryItem[] = [
     alt: "Radio Electronics Association students and instructor gathered after an intra-school session at D. S. Senanayake College",
   },
   {
+    id: "g6",
+    title: "On stage at Sahasak Naada",
+    caption: "An earlier edition of the workshop",
+    src: "/gallery/stage-1.jpg",
+    alt: "Association members in school blazers on stage beside a presenter with a microphone, in front of a Sahasak Naada backdrop",
+  },
+  {
     id: "g2",
     title: "Audio engineering session",
     caption: "Live console training and sound technology demonstration",
     src: "https://vibe.filesafe.space/1792255075376368762/attachments/fda2f282-cac4-43f6-98f8-45150a26b313.jpg",
     alt: "Instructor demonstrating live mixing console techniques to students during an audio workshop",
+  },
+  {
+    id: "g7",
+    title: "Presenting the team",
+    caption: "Introductions on stage",
+    src: "/gallery/stage-2.jpg",
+    alt: "A presenter with a microphone introducing association members lined up on stage beside a projection screen",
   },
   {
     id: "g3",
@@ -84,11 +98,25 @@ export const GALLERY: GalleryItem[] = [
     alt: "Students seated in the hall attentively following the audio workshop lecture",
   },
   {
+    id: "g8",
+    title: "In the hall",
+    caption: "A full house for the session",
+    src: "/gallery/hall-1.jpg",
+    alt: "A classroom hall full of seated students facing a speaker at a lectern and a projection screen",
+  },
+  {
     id: "g4",
     title: "Hands-on participation",
     caption: "Junior and senior members in the workshop auditorium",
     src: "https://vibe.filesafe.space/1792255075376368762/attachments/38c1f4af-493e-4b0a-aaf4-7b6a63cc4c48.jpg",
     alt: "School participants seated during an intra-school audio workshop session",
+  },
+  {
+    id: "g9",
+    title: "Listening in",
+    caption: "Students following the session",
+    src: "/gallery/audience-1.jpg",
+    alt: "A man in a white shirt and seated students listening attentively during a workshop session",
   },
   {
     id: "g5",
