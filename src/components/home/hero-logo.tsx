@@ -25,7 +25,7 @@ export function HeroLogo() {
   }, []);
 
   return (
-    <div className="ambient-gold-soft relative flex aspect-square w-full max-w-2xl items-center justify-center overflow-hidden p-3 sm:p-4">
+    <div className="relative flex aspect-square w-full max-w-2xl items-center justify-center overflow-hidden p-3 sm:p-4">
       {mode === "paint" ? (
         <MetallicPaint
           imageSrc={EVENT.logoUrl}
@@ -47,7 +47,7 @@ export function HeroLogo() {
         <img
           src={EVENT.logoUrl}
           alt="Sahasak Naada official event logo featuring microphone in hand and stylized lettering"
-          className="relative z-10 max-h-[34rem] w-full object-contain drop-shadow-[0_12px_28px_rgba(245,185,33,0.18)]"
+          className="relative z-10 max-h-[34rem] w-full object-contain"
         />
       )}
     </div>

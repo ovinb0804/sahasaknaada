@@ -5,18 +5,13 @@ import { BlurText } from "@/components/bits/blur-text";
 import { LiquidGlassButton } from "@/components/ui/liquid-glass-button";
 import { EVENT } from "@/lib/content";
 import { HeroLogo } from "@/components/home/hero-logo";
-import { HeroWaveform } from "@/components/home/hero-waveform";
 
 export function Hero() {
   return (
     <section className="relative overflow-hidden border-b border-hairline">
       {/* DarkVeil shader background */}
-      <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
-        <DarkVeil color="#b4b4c4" glow={0.2} />
-      </div>
-      {/* subtle animated gold audio waveform */}
-      <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
-        <HeroWaveform />
+      <div className="pointer-events-none absolute inset-0 z-0 h-full w-full" aria-hidden>
+        <DarkVeil className="h-full w-full" color="#b4b4c4" glow={0.2} />
       </div>
 
       <div className="relative z-10 grid w-full gap-12 px-5 pb-20 pt-16 sm:px-8 lg:px-14 xl:px-20 md:grid-cols-[1.05fr_1fr] md:gap-10 md:pb-28 md:pt-24">
