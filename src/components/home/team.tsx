@@ -8,7 +8,7 @@ export function Team() {
       <div className="w-full px-5 py-20 sm:px-8 lg:px-14 xl:px-20 md:py-28">
         <div className="grid items-center gap-10 md:grid-cols-[0.36fr_0.64fr] md:gap-16">
           <div>
-            <p className="text-xs font-medium uppercase tracking-[0.22em] text-gold">The team</p>
+            <p data-reveal className="reveal reveal-fly text-xs font-medium uppercase tracking-[0.22em] text-gold">The team</p>
             <h2 className="mt-4 font-display text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
               <BlurText
                 text="The team behind the workshop"
@@ -22,7 +22,7 @@ export function Team() {
                 distance={36}
               />
             </h2>
-            <p className="mt-4 text-base leading-relaxed text-muted-foreground text-pretty">
+            <p data-reveal className="reveal reveal-fly reveal-d2 mt-4 text-base leading-relaxed text-muted-foreground text-pretty">
               Meet the top board of {EVENT.host}, the team behind {EVENT.name}.
             </p>
           </div>

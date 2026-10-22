@@ -1,5 +1,4 @@
 import { TechText } from "@/components/bits/tech-text";
-import { BlurText } from "@/components/bits/blur-text";
 import { THEMES } from "@/lib/content";
 import { cn } from "@/lib/utils";
 
@@ -77,22 +76,14 @@ export function Themes() {
           ))}
         </div>
 
-        <div
+        <p
           data-reveal
-          className="reveal mt-12 max-w-2xl text-base leading-relaxed text-muted-foreground text-pretty md:mt-14"
+          className="reveal reveal-fly reveal-d2 mt-12 max-w-2xl text-base leading-relaxed text-muted-foreground text-pretty md:mt-14"
         >
-          <BlurText
-            text="Sound is the medium. Science is how we understand it. Creativity is what we do with it. Sahasak Naada brings students from different schools together to explore all three — hands on, in one room."
-            trigger="view"
-            effect="blur"
-            animateBy="words"
-            direction="top"
-            delay={60}
-            stepDuration={0.3}
-            blur={8}
-            distance={24}
-          />
-        </div>
+          Sound is the medium. Science is how we understand it. Creativity is what we do with it.
+          Sahasak Naada brings students from different schools together to explore all three — hands
+          on, in one room.
+        </p>
       </div>
     </section>
   );

@@ -89,7 +89,7 @@ export function Gallery() {
     >
       <div className="relative z-10 w-full px-5 pt-20 sm:px-8 lg:px-14 xl:px-20 md:pt-24">
         <div className="flex flex-col items-center text-center">
-          <p className="text-xs font-medium uppercase tracking-[0.28em] text-gold">Intra-school</p>
+          <p data-reveal className="reveal reveal-fly text-xs font-medium uppercase tracking-[0.28em] text-gold">Intra-school</p>
           <h2 className="mt-4 font-display text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
             <BlurText
               text="Moments from our workshops"
@@ -103,7 +103,7 @@ export function Gallery() {
               distance={36}
             />
           </h2>
-          <p className="mt-3 max-w-md text-sm text-muted-foreground">
+          <p data-reveal className="reveal reveal-fly reveal-d2 mt-3 max-w-md text-sm text-muted-foreground">
             Moments from our previous workshops at D. S. Senanayake College.
           </p>
         </div>

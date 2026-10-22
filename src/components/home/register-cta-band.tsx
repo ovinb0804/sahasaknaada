@@ -28,7 +28,7 @@ export function RegisterCtaBand() {
                   distance={36}
                 />
               </h2>
-              <p className="mt-5 text-lg font-medium leading-relaxed text-[#0a0a0a]/80 text-pretty">
+              <p data-reveal className="reveal reveal-fly reveal-d3 mt-5 text-lg font-medium leading-relaxed text-[#0a0a0a]/80 text-pretty">
                 Register your school's team for the inter-school audio workshop. Every member gets
                 an entry pass with a QR code for a quick check-in on the day.
               </p>

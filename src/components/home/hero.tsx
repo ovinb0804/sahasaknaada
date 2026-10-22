@@ -60,7 +60,7 @@ export function Hero() {
       <div className="relative z-10 grid w-full gap-12 px-5 pb-20 pt-32 sm:px-8 lg:px-14 xl:px-20 md:grid-cols-[1.05fr_1fr] md:gap-10 md:pb-28 md:pt-40">
         {/* Left: copy */}
         <div className="flex flex-col justify-center">
-          <p data-reveal className="text-xs font-medium uppercase tracking-[0.22em] text-gold">
+          <p data-reveal className="reveal reveal-fly text-xs font-medium uppercase tracking-[0.22em] text-gold">
             {EVENT.host}
           </p>
 
@@ -108,7 +108,7 @@ export function Hero() {
 
           <p
             data-reveal
-            className="reveal mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground text-pretty"
+            className="reveal reveal-fly reveal-d2 mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground text-pretty"
           >
             {EVENT.heroCopy}
           </p>

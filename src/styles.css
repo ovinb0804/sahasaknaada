@@ -178,6 +178,20 @@
       transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
+  /* Subtle fly-in for paragraphs / eyebrows: drifts in from the left and below */
+  .reveal.reveal-fly {
+    transform: translate3d(-1.75rem, 1rem, 0);
+    transition:
+      opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .reveal-d2 {
+    transition-delay: 0.14s !important;
+  }
+  .reveal-d3 {
+    transition-delay: 0.26s !important;
+  }
+
   /*
    * Safety: if JS has not executed yet, or for SSR prerender, or before
    * IntersectionObserver fires, elements marked .reveal should not stay

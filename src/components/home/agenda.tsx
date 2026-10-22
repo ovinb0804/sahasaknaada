@@ -7,7 +7,7 @@ export function Agenda() {
       <div className="w-full px-5 py-20 sm:px-8 lg:px-14 xl:px-20 md:py-28">
         <div className="grid gap-10 md:grid-cols-[0.4fr_0.6fr] md:gap-16">
           <div>
-            <p className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">
+            <p data-reveal className="reveal reveal-fly text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">
               The day
             </p>
             <h2 className="mt-4 font-display text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
@@ -23,7 +23,7 @@ export function Agenda() {
                 distance={40}
               />
             </h2>
-            <p className="mt-4 text-base leading-relaxed text-muted-foreground text-pretty">
+            <p data-reveal className="reveal reveal-fly reveal-d2 mt-4 text-base leading-relaxed text-muted-foreground text-pretty">
               The final agenda is being confirmed by the organizers. Until then, this is a clearly
               marked placeholder — not a final schedule.
             </p>

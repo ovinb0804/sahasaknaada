@@ -35,7 +35,7 @@ export function Faq() {
           <h2 className="font-display text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
             FAQ
           </h2>
-          <p className="mt-3 text-sm text-muted-foreground">
+          <p data-reveal className="reveal reveal-fly reveal-d2 mt-3 text-sm text-muted-foreground">
             Answers are being confirmed by the organizers. Placeholders below — not final event
             details.
           </p>
