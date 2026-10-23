@@ -10,7 +10,6 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import { LoadingScreen } from "@/components/loading-screen";
-import { usePerfTier } from "@/lib/perf";
 import { RouteTransition } from "@/components/route-transition";
 import appCss from "../styles.css?url";
 import { reportVibeError } from "../lib/vibe-error-reporting";
@@ -138,7 +137,6 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  usePerfTier();
 
   return (
     <QueryClientProvider client={queryClient}>

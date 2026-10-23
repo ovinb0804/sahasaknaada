@@ -4,16 +4,13 @@ import { Plus, Minus } from "lucide-react";
 import { DotGrid } from "@/components/bits/dot-grid";
 import { FAQS } from "@/lib/content";
 import { cn } from "@/lib/utils";
-import { usePerfTier } from "@/lib/perf";
 
 export function Faq() {
   const [open, setOpen] = useState<string | null>(null);
-  const lite = usePerfTier() === "low";
 
   return (
     <section id="faq" className="relative overflow-hidden border-b border-hairline">
       {/* Ambient dot-grid background — subtle, restrained, reduced-motion safe */}
-      {!lite && (
       <DotGrid
         className="pointer-events-none absolute inset-0 z-0"
         baseColor="#3c3c46"
@@ -29,7 +26,6 @@ export function Faq() {
         intro
         mouseInteraction
       />
-      )}
       <div
         className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-b from-background/40 via-background/10 to-background/60"
         aria-hidden
