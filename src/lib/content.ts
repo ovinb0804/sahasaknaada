@@ -181,12 +181,17 @@ export const FAQS: FaqEntry[] = [
   },
 ];
 
-export type FooterLink = { label: string; href: string | null };
+export type FooterLink = {
+  label: string;
+  href: string | null;
+  /** Which icon the footer draws for this link. */
+  icon?: "instagram" | "facebook" | "whatsapp";
+};
 
 export const FOOTER_SOCIALS: FooterLink[] = [
-  { label: "Instagram", href: null },
-  { label: "Facebook", href: null },
-  { label: "YouTube", href: null },
+  { label: "Instagram", href: "https://www.instagram.com/readsofficial/?hl=en", icon: "instagram" },
+  { label: "Facebook", href: "https://www.facebook.com/share/14r4jkzwYbp/", icon: "facebook" },
+  { label: "WhatsApp", href: EVENT.whatsappGroupUrl, icon: "whatsapp" },
 ];
 
 /** Copyright year — replace with the confirmed edition year once supplied. */
