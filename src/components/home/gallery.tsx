@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { GALLERY, type GalleryItem } from "@/lib/content";
+import { useNearViewport, usePerfTier } from "@/lib/perf";
 
 /*
  * DriftWall's own mask feathers the top edge (and the sides via the ellipse).
@@ -21,8 +22,12 @@ const WALL_MASK =
   "linear-gradient(to top, #000 var(--dw-edge), transparent 100%), " +
   "linear-gradient(to bottom, #000 var(--dw-edge), transparent 100%)";
 
+/* Cheaper mask for low-end devices: one linear gradient instead of three. */
+const WALL_MASK_LITE =
+  "linear-gradient(to bottom, transparent 0%, #000 28%, #000 72%, transparent 100%)";
+
 /** Wall geometry per screen width (set after mount so SSR markup matches). */
-function useWallLayout() {
+function useWallLayout(lite: boolean) {
   const [w, setW] = useState(1280);
   useEffect(() => {
     const on = () => setW(window.innerWidth);
@@ -30,9 +35,9 @@ function useWallLayout() {
     window.addEventListener("resize", on);
     return () => window.removeEventListener("resize", on);
   }, []);
-  if (w < 640) return { columns: 3, tileWidth: 150, tileHeight: 104, gap: 12 };
-  if (w < 1024) return { columns: 4, tileWidth: 190, tileHeight: 128, gap: 16 };
-  return { columns: 6, tileWidth: 240, tileHeight: 160, gap: 18 };
+  if (w < 640) return { columns: lite ? 2 : 3, tileWidth: 150, tileHeight: 104, gap: 12 };
+  if (w < 1024) return { columns: lite ? 3 : 4, tileWidth: 190, tileHeight: 128, gap: 16 };
+  return { columns: lite ? 4 : 6, tileWidth: 240, tileHeight: 160, gap: 18 };
 }
 
 /**
@@ -40,7 +45,11 @@ function useWallLayout() {
  * drift in alternating directions. Replaces the old scroll-snap carousel.
  */
 export function Gallery() {
-  const layout = useWallLayout();
+  const tier = usePerfTier();
+  const lite = tier === "low";
+  const layout = useWallLayout(lite);
+  // Only run the wall (rAF loop + 3D layers) while it is near the screen.
+  const [wallRef, wallNear] = useNearViewport<HTMLDivElement>("200px");
 
   const galleryItems = useMemo(
     () => GALLERY.filter((g): g is GalleryItem & { src: string } => Boolean(g.src)),
@@ -48,7 +57,7 @@ export function Gallery() {
   );
 
   const items = useMemo(
-    () => galleryItems.map((g) => ({ image: g.src, title: g.alt })),
+    () => galleryItems.map((g) => ({ image: g.thumb ?? g.src, title: g.alt })),
     [galleryItems],
   );
 
@@ -56,7 +65,7 @@ export function Gallery() {
   const activePhoto = activePhotoIndex !== null ? galleryItems[activePhotoIndex] : null;
 
   const handleItemClick = (item: DriftWallItem) => {
-    const idx = galleryItems.findIndex((g) => g.src === item.image);
+    const idx = galleryItems.findIndex((g) => (g.thumb ?? g.src) === item.image);
     if (idx !== -1) {
       setActivePhotoIndex(idx);
     }
@@ -109,7 +118,8 @@ export function Gallery() {
         </div>
       </div>
 
-      <div className="relative min-h-0 w-full flex-1">
+      <div ref={wallRef} className="relative min-h-0 w-full flex-1">
+        {wallNear && (
         <DriftWall
           items={items}
           columns={layout.columns}
@@ -128,9 +138,10 @@ export function Gallery() {
           fade={0.6}
           dim={0.55}
           overlayColor="#060010"
-          style={{ maskImage: WALL_MASK, WebkitMaskImage: WALL_MASK }}
+          style={{ maskImage: lite ? WALL_MASK_LITE : WALL_MASK, WebkitMaskImage: lite ? WALL_MASK_LITE : WALL_MASK }}
           onItemClick={handleItemClick}
         />
+        )}
       </div>
 
       {/* Full image preview lightbox */}

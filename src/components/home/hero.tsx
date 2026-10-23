@@ -6,6 +6,7 @@ import { BlurText } from "@/components/bits/blur-text";
 import { LiquidGlassButton } from "@/components/ui/liquid-glass-button";
 import { EVENT } from "@/lib/content";
 import { HeroLogo } from "@/components/home/hero-logo";
+import { usePerfTier } from "@/lib/perf";
 
 /**
  * The veil is shaped relative to its own height, so a tall, narrow box (a phone)
@@ -14,6 +15,7 @@ import { HeroLogo } from "@/components/home/hero-logo";
  * full coverage, no hard edge.
  */
 function HeroVeil() {
+  const lite = usePerfTier() === "low";
   const ref = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
 
@@ -42,10 +44,10 @@ function HeroVeil() {
             transform: "translate(-50%, -50%) rotate(90deg)",
           }}
         >
-          <DarkVeil className="h-full w-full" color="#b4b4c4" glow={0.2} mouseInteraction={false} />
+          <DarkVeil className="h-full w-full" color="#b4b4c4" glow={0.2} mouseInteraction={false} quality={lite ? 0.25 : 0.35} dpr={1} />
         </div>
       ) : (
-        <DarkVeil className="h-full w-full" color="#b4b4c4" glow={0.2} />
+        <DarkVeil className="h-full w-full" color="#b4b4c4" glow={0.2} mouseInteraction={!lite} quality={lite ? 0.25 : 0.35} dpr={1} />
       )}
     </div>
   );

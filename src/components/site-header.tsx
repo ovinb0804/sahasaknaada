@@ -8,11 +8,13 @@ import { Button } from "@/components/ui/button";
 import { LiquidGlassButton } from "@/components/ui/liquid-glass-button";
 import { NAV_SECTIONS, EVENT } from "@/lib/content";
 import GradualBlur from "@/components/bits/gradual-blur";
+import { usePerfTier } from "@/lib/perf";
 
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+  const lite = usePerfTier() === "low";
 
   // Close mobile menu on route change / resize.
   useEffect(() => {
@@ -29,9 +31,9 @@ export function SiteHeader() {
       <GradualBlur
         position="top"
         target="page"
-        height="7rem"
+        height={lite ? "5rem" : "6rem"}
         strength={2.5}
-        layers={10}
+        layers={lite ? 3 : 6}
         curve="bezier"
         exponential
         opacity={1}

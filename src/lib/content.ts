@@ -58,6 +58,8 @@ export type GalleryItem = {
   caption: string;
   /** Approved photo URL — replace placeholder once assets are supplied. */
   src: string | null;
+  /** Small version for the drifting wall (full-size src is used in the lightbox). */
+  thumb?: string;
   alt: string;
 };
 
@@ -74,6 +76,7 @@ export const GALLERY: GalleryItem[] = [
     title: "On stage at Sahasak Naada",
     caption: "An earlier edition of the workshop",
     src: "/gallery/stage-1.jpg",
+    thumb: "/gallery/stage-1-thumb.jpg",
     alt: "Association members in school blazers on stage beside a presenter with a microphone, in front of a Sahasak Naada backdrop",
   },
   {
@@ -88,6 +91,7 @@ export const GALLERY: GalleryItem[] = [
     title: "Presenting the team",
     caption: "Introductions on stage",
     src: "/gallery/stage-2.jpg",
+    thumb: "/gallery/stage-2-thumb.jpg",
     alt: "A presenter with a microphone introducing association members lined up on stage beside a projection screen",
   },
   {
@@ -102,6 +106,7 @@ export const GALLERY: GalleryItem[] = [
     title: "In the hall",
     caption: "A full house for the session",
     src: "/gallery/hall-1.jpg",
+    thumb: "/gallery/hall-1-thumb.jpg",
     alt: "A classroom hall full of seated students facing a speaker at a lectern and a projection screen",
   },
   {
@@ -116,6 +121,7 @@ export const GALLERY: GalleryItem[] = [
     title: "Listening in",
     caption: "Students following the session",
     src: "/gallery/audience-1.jpg",
+    thumb: "/gallery/audience-1-thumb.jpg",
     alt: "A man in a white shirt and seated students listening attentively during a workshop session",
   },
   {

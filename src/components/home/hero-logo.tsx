@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { MetallicPaint } from "@/components/bits/metallic-paint";
 import { EVENT } from "@/lib/content";
+import { detectPerfTier } from "@/lib/perf";
 
 /**
  * Hero logo visual anchor. Uses the React Bits MetallicPaint (WebGL2) to pour
@@ -15,7 +16,7 @@ export function HeroLogo() {
 
   useEffect(() => {
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-    if (reduce) {
+    if (reduce || detectPerfTier() === "low") {
       setMode("static");
       return;
     }

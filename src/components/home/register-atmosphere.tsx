@@ -1,4 +1,5 @@
 import { DotGrid } from "@/components/bits/dot-grid";
+import { usePerfTier } from "@/lib/perf";
 
 /*
  * RegisterAtmosphere — refined, atmospheric background for registration flows.
@@ -11,9 +12,11 @@ import { DotGrid } from "@/components/bits/dot-grid";
  * Restrained gold details; the page reads predominantly near-black/charcoal.
  */
 export function RegisterAtmosphere() {
+  const lite = usePerfTier() === "low";
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-hidden bg-[#07080A]">
       {/* Interactive DotGrid background matching the home page - restrained opacity */}
+      {!lite && (
       <DotGrid
         className="pointer-events-none absolute inset-0 z-0"
         baseColor="#23252d"
@@ -29,6 +32,7 @@ export function RegisterAtmosphere() {
         intro
         mouseInteraction
       />
+      )}
 
       {/* Subtle radial lighting behind content — calm, atmospheric, not a yellow patch */}
       <div
