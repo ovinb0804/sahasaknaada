@@ -65,10 +65,10 @@ export function SiteFooter() {
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label={l.label}
-                      className="inline-flex items-center gap-2 rounded-full border border-hairline px-4 py-2 text-sm text-foreground transition-colors hover:border-gold/60 hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      title={l.label}
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-hairline text-foreground transition-colors hover:border-gold/60 hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       {l.icon && <SocialIcon name={l.icon} />}
-                      <span>{l.label}</span>
                     </a>
                   ) : null}
                 </li>
